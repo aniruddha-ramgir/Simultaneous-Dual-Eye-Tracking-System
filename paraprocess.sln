@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 14
+VisualStudioVersion = 14.0.23107.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ServerHandlerFactory", "ServerHandlerFactory\ServerHandlerFactory.csproj", "{CA8ACB6D-EC84-4EF6-A2DE-6DF597CB7E7A}"
+	ProjectSection(ProjectDependencies) = postProject
+		{79FC3DC1-781E-491C-9CE2-520C157FDC08} = {79FC3DC1-781E-491C-9CE2-520C157FDC08}
+	EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ServerHandler", "ServerHandler\ServerHandler.csproj", "{79FC3DC1-781E-491C-9CE2-520C157FDC08}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{CA8ACB6D-EC84-4EF6-A2DE-6DF597CB7E7A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CA8ACB6D-EC84-4EF6-A2DE-6DF597CB7E7A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CA8ACB6D-EC84-4EF6-A2DE-6DF597CB7E7A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CA8ACB6D-EC84-4EF6-A2DE-6DF597CB7E7A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{79FC3DC1-781E-491C-9CE2-520C157FDC08}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{79FC3DC1-781E-491C-9CE2-520C157FDC08}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{79FC3DC1-781E-491C-9CE2-520C157FDC08}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{79FC3DC1-781E-491C-9CE2-520C157FDC08}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
