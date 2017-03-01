@@ -28,18 +28,19 @@ namespace ServerHandler
             //Instantiate MSMQ Observer object
             //System.Windows.Forms.MessageBox.Show("Hi?");
             Observer = new HandlerObserver(_port);
-
+            Thread ObserverWorker = new Thread(Observer.Begin);
+            ObserverWorker.Start();
             //Start UI only if the ServerHandler has begun
             ServerHandler.App app = new ServerHandler.App();
             app.InitializeComponent();
             app.Run();
-            System.Windows.Forms.MessageBox.Show("Hi");
+           // System.Windows.Forms.MessageBox.Show("Hi");
             //Code below will be executed only when Calibrator is exited.
             #region MSMQing
             //if (paraprocess.Program.Alpha.IsActivated() == true)
             //while(true)
             // {
-            Observer.Begin();
+            //Observer.Begin();
                 //Observer.listenIncomingQueue();
            // }
             #endregion
@@ -85,9 +86,9 @@ namespace ServerHandler
             //ObserverThread = new Thread(this.Run);
             port = _port;
             Run();
-            //ObserverThread.Start();
+           // ObserverThread.Start();
         }
-        void Run()
+        public void Run()
         {
             Response = new Message();
             receivedMessage = new Message();
@@ -99,12 +100,22 @@ namespace ServerHandler
                 {
                     //Just assign them to our Request queue objects, if they already exist.
                     IncomingQueue = new MessageQueue(@".\Private$\" + IncomingQueueName);
+
+                    IncomingQueue.MulticastAddress = "234.1.1.1:8001"; //can be passed an command line argument
+                    //System.Windows.Forms.MessageBox.Show("multicast set");
                 }
                 else
                 {
                     // Create the Request Queue
                     MessageQueue.Create(@".\Private$\" + IncomingQueueName);
                     IncomingQueue = new MessageQueue(@".\Private$\" + IncomingQueueName);
+                    IncomingQueue.SetPermissions("ANONYMOUS LOGON", MessageQueueAccessRights.WriteMessage);
+
+                    IncomingQueue.MulticastAddress = "234.1.1.1:8001"; //can be passed an command line argument
+                                                                       // IncomingQueue.SetPermissions("ANONYMOUS LOGON", MessageQueueAccessRights.ReceiveMessage);
+                                                                       //System.Windows.Forms.MessageBox.Show("multicast set");
+
+
 
                 }
 
@@ -120,9 +131,6 @@ namespace ServerHandler
                     OutgoingQueue = new MessageQueue(@".\Private$\" + OutgoingQueueName);
 
                 }
-
-                IncomingQueue.MulticastAddress = "234.1.1.1:8001"; //can be passed an command line argument
-                System.Windows.Forms.MessageBox.Show("multicast set");
                 
             }
             catch (Exception e)
@@ -132,13 +140,13 @@ namespace ServerHandler
         }
         public void Begin()
         {
-            while (true)
-            {
+            //while (true)
+            //{
                 this.listenIncomingQueue();
                 SpinWait.SpinUntil(() => RequestReceived); //This will block the thread
 
                 System.Windows.Forms.MessageBox.Show(RequestReceived.ToString());
-            }
+            //}
         }
         public bool executeMessage(Message msg)
         {
@@ -170,7 +178,7 @@ namespace ServerHandler
                     }
                 case "REQ":
                     {
-                        System.Windows.Forms.MessageBox.Show(body + label);
+                        System.Windows.Forms.MessageBox.Show("Hi"+body + label);
                         return handleRequest(body);
                     } 
                 case "EXCEPTION":
@@ -283,10 +291,12 @@ namespace ServerHandler
 
                 // End the asynchronous receive operation.
                 receivedMessage = workingQueue.EndReceive(asyncResult.AsyncResult);
+                System.Windows.Forms.MessageBox.Show("Triggered - Handler Receive");
 
                 // Process Message
                 Response = receivedMessage;
                 Response.CorrelationId = receivedMessage.Id; //sets the ID of the received message as CorrID to Reply (RESPONSE) message.
+                
                 //executeMessage(receivedMessage);
                 if (executeMessage(receivedMessage) == true)
                     RequestReceived = true;
@@ -294,7 +304,7 @@ namespace ServerHandler
                     RequestReceived = false;
 
                 // Restart the asynchronous receive operation.
-                //workingQueue.BeginReceive();
+                workingQueue.BeginReceive();
             }
             catch (Exception e)
             {
@@ -322,9 +332,9 @@ namespace ServerHandler
             Response.Body = msgString;
             Response.Label = label;
             Response.ResponseQueue = IncomingQueue;
-            System.Windows.Forms.MessageBox.Show("CHEK-Pre9"+msgString+label+OutgoingQueue.Path);
+            //System.Windows.Forms.MessageBox.Show("CHEK-Pre9"+msgString+label+OutgoingQueue.Path);
             OutgoingQueue.Send(Response);
-            System.Windows.Forms.MessageBox.Show("CHEK9");
+            //System.Windows.Forms.MessageBox.Show("CHEK9");
         }
        /* private string setLabel(string body) //attached appropriate label
         {

@@ -12,6 +12,8 @@ namespace ServerHandlerFactory
     class FactoryFacade
     {
         Thread FacadeThread;
+        Thread Handler1Manager,Handler2Manager;
+        int  Handler1ProcessID,Handler2ProcessID;
         public bool FactoryStarted { get; private set; }
         public FactoryObserver Observer = null;
         public FactoryFacade()
@@ -25,28 +27,28 @@ namespace ServerHandlerFactory
         {
             //use for loop and the below logic to make it work it multiple trackers
             if (IsHandlerProcessRunning() != true) //Extend this to work with more than 2 Handlers. 
-                StartHandlerProcess("6555");
+                Handler1ProcessID= StartHandlerProcess("6555");
             //No need to wait here because, Handler waits internally after starting the server.
-            StartHandlerProcess("6556");
+            Handler2ProcessID =  StartHandlerProcess("6556");
             Observer = new FactoryObserver("6555", "6556");
             Observer.Run();
             //Observer.Purge();
         }
-        private void StartHandlerProcess(string port)
+        private int StartHandlerProcess(string port)
         { 
             ProcessStartInfo psi = new ProcessStartInfo();
             psi.WindowStyle = ProcessWindowStyle.Minimized; //set it to hidden 
             psi.FileName = GetHandlerExecutablePath();
             psi.Arguments = port;  //start with device 1 if its already running. //???
-
+            Process processServer = null;
             if (psi.FileName == string.Empty || File.Exists(psi.FileName) == false)
             {
                 FactoryStarted = false;
-                return;
+                return 0;
             }
             try
             {
-                Process processServer = new Process();
+                processServer = new Process();
                 processServer.StartInfo = psi;
                 processServer.Start();
                 FactoryStarted = true;
@@ -57,6 +59,7 @@ namespace ServerHandlerFactory
                 FactoryStarted = false;
             }
             Thread.Sleep(3000); // wait for it to spin up
+            return processServer.Id;
         }
         private bool IsHandlerProcessRunning()
         {
@@ -92,6 +95,12 @@ namespace ServerHandlerFactory
                  return dlg.FileName; 
 
             return string.Empty;
+        }
+
+        public void ExitHandlers() //THIS IS JUST A TEMPORARY fix. Make Handlers close themselves.
+        {
+            Process.GetProcessById(Handler1ProcessID).Kill();
+            Process.GetProcessById(Handler2ProcessID).Kill();
         }
     }
     class FactoryObserver
@@ -152,7 +161,31 @@ namespace ServerHandlerFactory
                 #endregion
 
                 #region Multicast Queue
-                multiRequestQueue = new MessageQueue("FormatName:MULTICAST=234.1.1.1:8001");
+                /* if (MessageQueue.Exists(@".\Private$\6555RQ"))
+                 {
+                     multiRequestQueue = new MessageQueue(@".\Private$\6555RQ");
+                 }
+                 else
+                 {
+                     MessageQueue.Create(@".\Private$\6555RQ");
+                     multiRequestQueue = new MessageQueue(@".\Private$\6555RQ");
+                 } */
+               // const string mQueuePath = @"FormatName:MULTICAST=234.1.1.1:8001";
+                multiRequestQueue = new MessageQueue("FORMATNAME:MULTICAST=234.1.1.1:8001");
+               /* multiRequestQueue.Send("meow");
+
+                MessageQueue.Create(@".\Private$\budd");
+                MessageQueue multi = new MessageQueue(@".\Private$\budd");
+                multi.MulticastAddress = "234.1.1.1:8001";
+                Message mew = multi.Receive();
+
+                mew.Formatter = new XmlMessageFormatter(new String[] { "System.String,mscorlib" });
+                string Body = mew.Label.ToString();
+                System.Windows.Forms.MessageBox.Show(Body); */
+
+                //multiRequestQueue.SetPermissions("ANONYMOUS LOGON", MessageQueueAccessRights.WriteMessage);
+                //multiRequestQueue.SetPermissions("Everyone", MessageQueueAccessRights.WriteMessage);
+                //multiRequestQueue.SetPermissions("Everyone", MessageQueueAccessRights.ReceiveMessage);
                 #endregion
 
                 //We do not have to initialize Request/Incoming queues for Handler processes.
@@ -199,7 +232,7 @@ namespace ServerHandlerFactory
             //SDET starts with a "calibrate" NOTIFICATION from the Handlers.
             Task listenHandler1 = Task.Factory.StartNew(listenHandler1RE);
             Task listenHandler2 = Task.Factory.StartNew(listenHandler2RE);
-            await Task.WhenAll(listenHandler1, listenHandler2);
+            //await Task.WhenAll(listenHandler1, listenHandler2);
 
             //Waits until "calibrate" is received.
             SpinWait.SpinUntil(() => Handler1Received && Handler2Received);
@@ -219,8 +252,8 @@ namespace ServerHandlerFactory
             {
                 System.Windows.Forms.MessageBox.Show("Entered1." + Handler1Received.ToString() + Handler2Received.ToString());
                 //Reset Tasks.
-                listenHandler1 = null;
-                listenHandler2 = null;
+               // listenHandler1 = null;
+               // listenHandler2 = null;
 
                 //reset values so that next messages can use it again.
                 Handler1Received = Handler2Received = IncomingReceived= false;
@@ -228,9 +261,11 @@ namespace ServerHandlerFactory
                 //gets id from FWD message and sets corrID to RESPONSE. And then multicasts FWD
                 listenIncomingQueue();
                 SpinWait.SpinUntil(() => IncomingReceived);
-                listenHandler1 = Task.Factory.StartNew(listenHandler1RE);
-                listenHandler2 = Task.Factory.StartNew(listenHandler2RE);
-                await Task.WhenAll(listenHandler1, listenHandler2);
+
+                //listenHandler1 = Task.Factory.StartNew(listenHandler1RE);
+                //listenHandler2 = Task.Factory.StartNew(listenHandler2RE);
+
+                //await Task.WhenAll(listenHandler1, listenHandler2);
                 System.Windows.Forms.MessageBox.Show("Entered2." + Handler1Received.ToString() + Handler2Received.ToString());
 
                 //Waits until "calibrate" is received.
@@ -245,11 +280,11 @@ namespace ServerHandlerFactory
                 if (Handler1Received == true && Handler2Received == true)
                 {
                     OutgoingQueue.Send(Response); //send success reply to PsychoPy
-                    System.Windows.Forms.MessageBox.Show("success.");
+                    System.Windows.Forms.MessageBox.Show("success2.");
                 }
                 else
                 {
-                    System.Windows.Forms.MessageBox.Show("failure." + Handler1Received.ToString() + Handler2Received.ToString());
+                    System.Windows.Forms.MessageBox.Show("failure2." + Handler1Received.ToString() + Handler2Received.ToString());
                 }
             }
         }
@@ -379,6 +414,7 @@ namespace ServerHandlerFactory
             //Message receivedMessage = null;
             IncomingReceived = false;
             MessageQueue workingQueue = null;
+            Message msg = null;
             try
             {
                 // Connect to the queue.
@@ -392,14 +428,22 @@ namespace ServerHandlerFactory
                 Response = fwd;
                 Response.CorrelationId = fwd.Id;
                 Response.ResponseQueue = IncomingQueue;
-                multiRequestQueue.Send(fwd);
+                msg = new Message("ready");
+            }
+            catch (Exception e)
+            {
+                System.Windows.Forms.MessageBox.Show(e.Message + "CHEKPre6");
+            }
+            try
+               { 
+            multiRequestQueue.Send(msg,"REQ");
                 IncomingReceived = true;
                 // Restart the asynchronous receive operation.
-               // workingQueue.BeginReceive();
+                workingQueue.BeginReceive();
             }
             catch(Exception e)
             {
-                System.Windows.Forms.MessageBox.Show(e.Message + "CHEK6");
+                System.Windows.Forms.MessageBox.Show(e.Message+e.Source + "CHEK6");
             }
         }
         private void Handler1ReceiveCompleted(object source, ReceiveCompletedEventArgs asyncResult)
@@ -424,7 +468,7 @@ namespace ServerHandlerFactory
                 else
                     Handler1Received = false;
                 // Restart the asynchronous receive operation.
-               // workingQueue.BeginReceive();
+                workingQueue.BeginReceive();
 
             }
             catch (Exception e)
@@ -461,7 +505,7 @@ namespace ServerHandlerFactory
                       Handler2Received = false;
                   } */
                 // Restart the asynchronous receive operation.
-                //workingQueue.BeginReceive();
+                workingQueue.BeginReceive();
             }
             catch (Exception e)
             {

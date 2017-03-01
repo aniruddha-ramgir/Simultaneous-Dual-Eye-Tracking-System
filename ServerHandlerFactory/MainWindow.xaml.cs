@@ -50,6 +50,7 @@ namespace ServerHandlerFactory
             //Gracefully exit Handlers i.e., send "stop" message to them. They have to save the files and exit themselves.
             //Keep SDET alive.
             //Factory.Observer.publish("stop","REQ");
+            Factory.ExitHandlers();
         }
         private void send(object sender, RoutedEventArgs e)
         {
@@ -61,7 +62,7 @@ namespace ServerHandlerFactory
             Message m = new Message();
             m.Body = msg;
             m.Label = label;
-            m.ResponseQueue = OutgoingQueue;
+            //m.ResponseQueue = OutgoingQueue;
             IncomingQueue.Send(m);
         }
         private void incoming_TextChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
