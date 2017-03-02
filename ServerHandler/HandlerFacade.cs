@@ -28,7 +28,7 @@ namespace ServerHandler
             //Instantiate MSMQ Observer object
             //System.Windows.Forms.MessageBox.Show("Hi?");
             Observer = new HandlerObserver(_port);
-            Thread ObserverWorker = new Thread(Observer.Begin);
+            Thread ObserverWorker = new Thread(Observer.listenIncomingQueue);
             ObserverWorker.Start();
             //Start UI only if the ServerHandler has begun
             ServerHandler.App app = new ServerHandler.App();
@@ -72,14 +72,14 @@ namespace ServerHandler
     }
     class HandlerObserver
     {
-        Thread ObserverThread;
+       // Thread ObserverThread;
         MessageQueue IncomingQueue = null;
         MessageQueue OutgoingQueue = null;
         public string IncomingQueueName { get; private set; }
         public string OutgoingQueueName { get; private set; }
-        Message Response;
-        bool RequestReceived = false;
+       // bool RequestReceived = false;
         Int32 port;
+        Message Response;
         Message receivedMessage = null;
         public HandlerObserver(Int32 _port) //creates a queue using port for the Handler process.
         {
@@ -101,7 +101,7 @@ namespace ServerHandler
                     //Just assign them to our Request queue objects, if they already exist.
                     IncomingQueue = new MessageQueue(@".\Private$\" + IncomingQueueName);
 
-                    IncomingQueue.MulticastAddress = "234.1.1.1:8001"; //can be passed an command line argument
+                   // IncomingQueue.MulticastAddress = "234.1.1.1:8001"; //can be passed an command line argument
                     //System.Windows.Forms.MessageBox.Show("multicast set");
                 }
                 else
@@ -109,13 +109,11 @@ namespace ServerHandler
                     // Create the Request Queue
                     MessageQueue.Create(@".\Private$\" + IncomingQueueName);
                     IncomingQueue = new MessageQueue(@".\Private$\" + IncomingQueueName);
-                    IncomingQueue.SetPermissions("ANONYMOUS LOGON", MessageQueueAccessRights.WriteMessage);
+                   // IncomingQueue.SetPermissions("ANONYMOUS LOGON", MessageQueueAccessRights.WriteMessage);
 
-                    IncomingQueue.MulticastAddress = "234.1.1.1:8001"; //can be passed an command line argument
+                    //IncomingQueue.MulticastAddress = "234.1.1.1:8001"; //can be passed an command line argument
                                                                        // IncomingQueue.SetPermissions("ANONYMOUS LOGON", MessageQueueAccessRights.ReceiveMessage);
                                                                        //System.Windows.Forms.MessageBox.Show("multicast set");
-
-
 
                 }
 
@@ -138,16 +136,11 @@ namespace ServerHandler
                 System.Windows.Forms.MessageBox.Show(e.Message+"CHEK13", e.Source);
             }
         }
-        public void Begin()
+       /*( public void Begin()
         {
-            //while (true)
-            //{
                 this.listenIncomingQueue();
-                SpinWait.SpinUntil(() => RequestReceived); //This will block the thread
-
-                System.Windows.Forms.MessageBox.Show(RequestReceived.ToString());
-            //}
-        }
+               // SpinWait.SpinUntil(() => RequestReceived); //This will block the thread
+        } */
         public bool executeMessage(Message msg)
         {
             string label = null;
@@ -155,10 +148,10 @@ namespace ServerHandler
             try
             {
                 msg.Formatter = new XmlMessageFormatter(new String[] { "System.String,mscorlib" });
+                Response.Formatter = new XmlMessageFormatter(new String[] { "System.String,mscorlib" });
                 label = msg.Label.ToString();
-
                 body = msg.Body.ToString();
-                System.Windows.Forms.MessageBox.Show(body + "CHEK11" + label);
+               // System.Windows.Forms.MessageBox.Show("CorrID:"+Response.CorrelationId.ToString()+"ID:"+msg.Id.ToString()+"=="+body + "CHEK11" + label);
             }
             catch(Exception e)
             {
@@ -178,7 +171,7 @@ namespace ServerHandler
                     }
                 case "REQ":
                     {
-                        System.Windows.Forms.MessageBox.Show("Hi"+body + label);
+                        System.Windows.Forms.MessageBox.Show("CHEK16"+body + label);
                         return handleRequest(body);
                     } 
                 case "EXCEPTION":
@@ -219,51 +212,51 @@ namespace ServerHandler
                         if (paraprocess.Program.Alpha.IsCalibrated() == true)
                         {
                             System.Windows.Forms.MessageBox.Show("Fake calibrated.");
-                            sendMessage("ready","ACK");
+                            sendResponse(body,"ACK");
                             return true;
                         }
                         else
                         {
                             System.Windows.Forms.MessageBox.Show("Please calibrate the Trackers."); //retry if OK, else, ERR. Or PsychoPy can send a message
-                            sendMessage("ready", "ERR");
+                            sendResponse(body, "ERR");
                             return true;
                         }
                     }
                 case "record":
                     {
-                        if (paraprocess.Program.Alpha.IsCalibrated() == true)
+                        if (paraprocess.Program.Alpha.IsCalibrated() != true)
                         {
-                            paraprocess.Program.Alpha.StartListening();
-                            if (paraprocess.Program.Alpha.IsListening() == true)
-                            {
-                                sendMessage("record","ACK");
-                                return true;
-                            }
-                            else
-                            {
-                                sendMessage("record", "ERR");
-                                return false;
-                            }
+                            sendResponse(body, "ERR");
+                            return false;
+                        }
+                        paraprocess.Program.Alpha.StartListening();
+                        if (paraprocess.Program.Alpha.IsListening() == true)
+                        {
+                            sendResponse(body, "ACK");
+                            return true;
                         }
                         else
                         {
+                            sendResponse(body, "ERR");
                             return false;
                         }
                     }
                 case "pause":
                     {
-                        sendMessage("pause","ACK");
+                        //add pause code here
+                        sendResponse(body,"ACK");
                         return paraprocess.Program.Alpha.StopListening();
                     }
                 case "stop":
                     {
-                        sendMessage("stop","ACK");
+                        //Stop code to be added here
+                        sendResponse(body,"ACK");
                         return paraprocess.Program.Alpha.Deactivate();
                     }
                 default: return false;
             }
         }
-        public void listenIncomingQueue() //receives Message and attaches CorrelationID to the "response" message object
+        public void listenIncomingQueue() //receives Message and sends back the "response" message object
         {
             try
             {
@@ -276,32 +269,51 @@ namespace ServerHandler
             {
               //  m.Body = e.Message;
               //  m.Label = "EXCEPTION";
-                System.Windows.Forms.MessageBox.Show(e.Message+"CHEK13");
+                System.Windows.Forms.MessageBox.Show(e.Message+"CHEK17");
             }
         }
         private void MyReceiveCompleted(Object source, ReceiveCompletedEventArgs asyncResult)
         {
-            //Message receivedMessage = new Message();
-            RequestReceived = false;
+
+            #region set Queue Formatter
+            IncomingQueue.Formatter = new XmlMessageFormatter(new String[] { "System.String,mscorlib" });
+            #endregion
+
+            #region set Queue PropertyFilters
+            IncomingQueue.MessageReadPropertyFilter.SetDefaults();
+            #endregion
+
+            //RequestReceived = false;
             MessageQueue workingQueue = null;
+            Response = new Message(); //reset Response whenever a new message is received
             try
             {
                 // Connect to the queue.
+                workingQueue = new MessageQueue();
+
                 workingQueue = (MessageQueue)source;
+                workingQueue.Formatter = new XmlMessageFormatter(new String[] { "System.String,mscorlib" });
+                //workingQueue.MessageReadPropertyFilter.CorrelationId = true;
+                workingQueue.MessageReadPropertyFilter.Body = true;
+                workingQueue.MessageReadPropertyFilter.Label = true;
+                workingQueue.MessageReadPropertyFilter.SenderId = true;
 
                 // End the asynchronous receive operation.
                 receivedMessage = workingQueue.EndReceive(asyncResult.AsyncResult);
+                receivedMessage.Formatter = new XmlMessageFormatter(new String[] { "System.String,mscorlib" });
+                Response.Formatter = new XmlMessageFormatter(new String[] { "System.String,mscorlib" });
+
                 System.Windows.Forms.MessageBox.Show("Triggered - Handler Receive");
 
                 // Process Message
-                Response = receivedMessage;
-                Response.CorrelationId = receivedMessage.Id; //sets the ID of the received message as CorrID to Reply (RESPONSE) message.
-                
+                //Response = receivedMessage;
+                //Response.CorrelationId = receivedMessage.SenderId.ToString(); //sets the corrID of the received message as CorrID to Reply (RESPONSE) message.
+                //System.Windows.Forms.MessageBox.Show("Response Corr: "+Response.CorrelationId.ToString());
                 //executeMessage(receivedMessage);
                 if (executeMessage(receivedMessage) == true)
-                    RequestReceived = true;
+                System.Windows.Forms.MessageBox.Show("CHEK18 + TRUEE. ");
                 else
-                    RequestReceived = false;
+                    System.Windows.Forms.MessageBox.Show("CHEK18 + FALSEE. ");
 
                 // Restart the asynchronous receive operation.
                 workingQueue.BeginReceive();
@@ -313,43 +325,33 @@ namespace ServerHandler
                 System.Windows.Forms.MessageBox.Show(e.Message+"CHEK12");
             }
         }
-      /*  public void sendMessage(Message msg) //attaches Response Queue and sends (redundant?)
+        /*  public void sendMessage(Message msg) //attaches Response Queue and sends (redundant?)
+          {
+              msg.ResponseQueue = IncomingQueue;
+              msg.CorrelationId = Response.CorrelationId;
+              OutgoingQueue.Send(msg);
+          } */
+        public void sendResponse(string body, string label) //create message object for a string and sends it.
         {
-            msg.ResponseQueue = IncomingQueue;
-            msg.CorrelationId = Response.CorrelationId;
-            OutgoingQueue.Send(msg);
-        } */
-        /*public void sendMessage(string msgString) //create message object for a string and sends it. Attaches appropriate label to it.
-        {
-            Response.Body = msgString;
-            Response.Label = setLabel(msgString);
-            Response.ResponseQueue = IncomingQueue;
-            OutgoingQueue.Send(Response);
-        } */
-        public void sendMessage(string msgString,string label) //create message object for a string and sends it.
-        {
-            Response = new Message();
-            Response.Body = msgString;
+            //Response = new Message();
+            Response.Body = body;
             Response.Label = label;
-            Response.ResponseQueue = IncomingQueue;
+            Response.ResponseQueue = IncomingQueue; //USELESS
             //System.Windows.Forms.MessageBox.Show("CHEK-Pre9"+msgString+label+OutgoingQueue.Path);
             OutgoingQueue.Send(Response);
             //System.Windows.Forms.MessageBox.Show("CHEK9");
         }
-       /* private string setLabel(string body) //attached appropriate label
+        public void sendMessage(string msgString, string label) //create message object for a string and sends it.
         {
-            switch (body)
-            {
-                case "calibrated":
-                    {
-                        return "NOTIF";
-                    }
-                 default:
-                    {
-                        return "ACK";
-                    }
-            }
-        } */
+            Message msg = new Message();
+            msg.Formatter = new XmlMessageFormatter(new String[] { "System.String,mscorlib" });
+            msg.Body = msgString;
+            msg.Label = label;
+            msg.ResponseQueue = IncomingQueue;
+            //System.Windows.Forms.MessageBox.Show("CHEK-Pre9"+msgString+label+OutgoingQueue.Path);
+            OutgoingQueue.Send(msg);
+            //System.Windows.Forms.MessageBox.Show("CHEK9");
+        }
     }
 
 }

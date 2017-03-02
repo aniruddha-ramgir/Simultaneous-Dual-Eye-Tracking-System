@@ -12,7 +12,6 @@ namespace ServerHandlerFactory
     class FactoryFacade
     {
         Thread FacadeThread;
-        Thread Handler1Manager,Handler2Manager;
         int  Handler1ProcessID,Handler2ProcessID;
         public bool FactoryStarted { get; private set; }
         public FactoryObserver Observer = null;
@@ -31,7 +30,7 @@ namespace ServerHandlerFactory
             //No need to wait here because, Handler waits internally after starting the server.
             Handler2ProcessID =  StartHandlerProcess("6556");
             Observer = new FactoryObserver("6555", "6556");
-            Observer.Run();
+            Observer.SyncRun();
             //Observer.Purge();
         }
         private int StartHandlerProcess(string port)
@@ -113,22 +112,34 @@ namespace ServerHandlerFactory
         //MULITCAST Queue. Handlers will receive requests from this queue.
         MessageQueue multiRequestQueue = null;
 
+        //Request Queues. Write messages to RQ.
+        MessageQueue Handler1RQ = null;
+        MessageQueue Handler2RQ = null;
+
         //Response Queues. Read messages from RE.
         MessageQueue Handler1RE = null;
         MessageQueue Handler2RE = null;
+        
+        //Message that is received from PsychoPy
+        Message receivedMessage = null;
+
+        //Message to be published to the  Handler queues
+        Message fwd = null;
 
         //Message to be sent back to PsychoPy
         Message Response = null;
 
-        //Message to be forwarded
-        Message fwd = null;
+        #endregion
+
+       /* #region
+        Thread ObserverWorker1,ObserverWorker2;
         #endregion
 
         #region Boolean Identifiers that tell us if we have received any message from their respective senders.
         bool Handler1Received = false;
         bool Handler2Received = false;
         bool IncomingReceived = false;
-        #endregion
+        #endregion */
 
         public FactoryObserver(string port1,string port2)
         {
@@ -136,6 +147,7 @@ namespace ServerHandlerFactory
             //outgoingQueueName = "SDET-RE";
             try
             {
+                //SET ACCESS MODES. 
                 #region Incoming Queue
                 if (MessageQueue.Exists(@".\Private$\" + Resources.incomingQueueName))
                 {
@@ -160,38 +172,37 @@ namespace ServerHandlerFactory
                 }
                 #endregion
 
-                #region Multicast Queue
-                /* if (MessageQueue.Exists(@".\Private$\6555RQ"))
-                 {
-                     multiRequestQueue = new MessageQueue(@".\Private$\6555RQ");
-                 }
-                 else
-                 {
-                     MessageQueue.Create(@".\Private$\6555RQ");
-                     multiRequestQueue = new MessageQueue(@".\Private$\6555RQ");
-                 } */
-               // const string mQueuePath = @"FormatName:MULTICAST=234.1.1.1:8001";
-                multiRequestQueue = new MessageQueue("FORMATNAME:MULTICAST=234.1.1.1:8001");
-               /* multiRequestQueue.Send("meow");
-
-                MessageQueue.Create(@".\Private$\budd");
-                MessageQueue multi = new MessageQueue(@".\Private$\budd");
-                multi.MulticastAddress = "234.1.1.1:8001";
-                Message mew = multi.Receive();
-
-                mew.Formatter = new XmlMessageFormatter(new String[] { "System.String,mscorlib" });
-                string Body = mew.Label.ToString();
-                System.Windows.Forms.MessageBox.Show(Body); */
-
-                //multiRequestQueue.SetPermissions("ANONYMOUS LOGON", MessageQueueAccessRights.WriteMessage);
-                //multiRequestQueue.SetPermissions("Everyone", MessageQueueAccessRights.WriteMessage);
-                //multiRequestQueue.SetPermissions("Everyone", MessageQueueAccessRights.ReceiveMessage);
-                #endregion
+                #region DOES NOT WORK- Multicast Queue
+               // multiRequestQueue = new MessageQueue("FORMATNAME:MULTICAST=234.1.1.1:8001");
+                #endregion  
 
                 //We do not have to initialize Request/Incoming queues for Handler processes.
                 //Because we will be sending to the MULTI-CAST address.
                 //Processes can create their own RQ and RE queues.
                 //We are initialising RE queues here JUST TO BE SAFE.
+                #region Process1 Request Queue
+                if (MessageQueue.Exists(@".\Private$\" + port1 + "RQ"))
+                {
+                    Handler1RQ = new MessageQueue(@".\Private$\" + port1 + "RQ");
+                }
+                else
+                {
+                    MessageQueue.Create(@".\Private$\" + port1 + "RQ");
+                    Handler1RQ = new MessageQueue(@".\Private$\" + port1 + "RQ");
+                }
+                #endregion
+
+                #region Process2 Request Queue
+                if (MessageQueue.Exists(@".\Private$\" + port2 + "RQ"))
+                {
+                    Handler2RQ = new MessageQueue(@".\Private$\" + port2 + "RQ");
+                }
+                else
+                {
+                    MessageQueue.Create(@".\Private$\" + port2 + "RQ");
+                    Handler1RQ = new MessageQueue(@".\Private$\" + port2 + "RQ");
+                }
+                #endregion
 
                 #region Process1 Response Queue
                 if (MessageQueue.Exists(@".\Private$\" + port1 + "RE"))
@@ -227,65 +238,160 @@ namespace ServerHandlerFactory
                 System.Windows.Forms.MessageBox.Show(e.Message+"CHEK1");
             }
         }
-        public async void Run()
+        public void SyncRun()
         {
+            #region set Queue Formatter
+            IncomingQueue.Formatter = new XmlMessageFormatter(new String[] { "System.String,mscorlib" });
+            Handler1RE.Formatter = new XmlMessageFormatter(new String[] { "System.String,mscorlib" });
+            Handler2RE.Formatter = new XmlMessageFormatter(new String[] { "System.String,mscorlib" });
+            #endregion
+
+            #region set Queue PropertyFilters
+            IncomingQueue.MessageReadPropertyFilter.SetDefaults();
+            Handler1RE.MessageReadPropertyFilter.SetDefaults();
+            Handler2RE.MessageReadPropertyFilter.SetDefaults();
+            #endregion
+
+            bool loop = true;
             //SDET starts with a "calibrate" NOTIFICATION from the Handlers.
-            Task listenHandler1 = Task.Factory.StartNew(listenHandler1RE);
-            Task listenHandler2 = Task.Factory.StartNew(listenHandler2RE);
-            //await Task.WhenAll(listenHandler1, listenHandler2);
+            //Doesnt matter if I receive messages from both parallely or serially. 
+            //I pick "SERIALLY" for now because I have to wait for one Handler or the other either way.
 
-            //Waits until "calibrate" is received.
-            SpinWait.SpinUntil(() => Handler1Received && Handler2Received);
-
-            //This statement is not necessary and is redundant, but for now I'm keeping it here to double check
-            if (Handler1Received == true && Handler2Received == true)
+            if (processHandlerReply(Handler1RE.Receive()) =="NOTIF" && processHandlerReply(Handler2RE.Receive()) == "NOTIF")
             {
+                //set "Ready" variable to true, MAYBE.
                 System.Windows.Forms.MessageBox.Show("success1.");
             }
-            else
+            //Start the loop of listening and forwarding.
+            while (loop)
             {
-                System.Windows.Forms.MessageBox.Show("failure1."+Handler1Received.ToString()+Handler2Received.ToString());
+                receivedMessage = new Message();
+                fwd = new Message();
+                Response = new Message();
+                System.Windows.Forms.MessageBox.Show("Entered1.");
+
+                //gets Message from PsychoPy
+                receivedMessage  = IncomingQueue.Receive();
+                receivedMessage.Formatter = new XmlMessageFormatter(new String[] { "System.String,mscorlib" });
+                //fwd.ResponseQueue = IncomingQueue; //This statement is WRONG because, Handlers will reply to their own Response Queues.
+
+                //Parallel Sending. Using Task here does not seem smart, but its just to be on the safe side.
+                 //Task.Run(() => Handler1RQ.Send(fwd));
+                // Task.Run(() => Handler2RQ.Send(fwd));
+                Handler1RQ.Send(receivedMessage);
+                Handler2RQ.Send(receivedMessage);
+                System.Windows.Forms.MessageBox.Show("EnteredandSent2.");
+                //Using Parallel.Invoke to send message to two different queues at the same time.
+                //This is the best shot we have at parallel sending.
+                //Parallel.Invoke(() =>{ Handler1RQ.Send(fwd); }, () => { Handler2RQ.Send(fwd); });
+
+                #region set Handler Queue PropertyFilters
+                Handler1RE.MessageReadPropertyFilter.Body = true;
+                Handler1RE.MessageReadPropertyFilter.Label = true;
+                Handler2RE.MessageReadPropertyFilter.Body = true;
+                Handler2RE.MessageReadPropertyFilter.Label = true;
+                #endregion
+
+                #region Receiving from Handlers and setting message Formatters
+                Message msg1 = Handler1RE.Receive();
+                Message msg2 = Handler2RE.Receive();
+                msg1.Formatter = new XmlMessageFormatter(new String[] { "System.String,mscorlib" });
+                msg2.Formatter = new XmlMessageFormatter(new String[] { "System.String,mscorlib" });
+                #endregion
+                #region "BODY CORRELATION" if message from Handler1 is not correlated. 
+                if (!msg1.Body.Equals(receivedMessage.Body)) //Checks if message from Handler1 is correlated.
+                {
+                    DisplayMessage(msg1);
+                    System.Windows.Forms.MessageBox.Show("Not Same MSG1.");
+                    break;
+                }
+                #endregion
+                #region "BODY CORRELATION" if message from Handler2 is not correlated.
+                if (!msg2.Body.Equals(receivedMessage.Body))
+                {
+                    DisplayMessage(msg2);
+                    System.Windows.Forms.MessageBox.Show("Not Same MSG2.");
+                    break;
+                }
+                #endregion
+
+                System.Windows.Forms.MessageBox.Show("Correlated!");
+
+                #region Handler1 has not received Acknowledgement
+                if (processHandlerReply(msg1) != "ACK") //Deals with Handler1's the received Acknowledgements or lack thereof
+                {
+                    if (processHandlerReply(msg1) == "ERR")
+                    {
+                        Response.Body = "Handler1";
+                        Response.Label = "ERR";
+                    }
+                    else
+                    {
+                        Response.Body = "Handler1";
+                        Response.Label = "UNKNOWN";
+                    }
+                    Response.ResponseQueue = IncomingQueue;
+                    OutgoingQueue.Send(Response);
+                    //continue;
+                }
+                #endregion
+                #region Handler2 has not received Acknowledgement
+                if (processHandlerReply(msg2) != "ACK") //Deals with Handler2's the received Acknowledgements or lack thereof
+                {
+                    if (processHandlerReply(msg2) == "ERR")
+                    {
+                        Response.Body = "Handler2";
+                        Response.Label = "ERR";
+                    }
+                    else
+                    {
+                        Response.Body = "Handler2";
+                        Response.Label = "UNKNOWN";
+                    }
+                    Response.ResponseQueue = IncomingQueue;
+                    OutgoingQueue.Send(Response);
+                }
+                #endregion
+
+                #region If all above are not satisfied -in order words- correlated and acknowledged
+                Response.Label = "ACK";
+                Response.ResponseQueue = IncomingQueue;
+                OutgoingQueue.Send(Response);
+                #endregion
+
+                if (getBody(receivedMessage) == "STOP")
+                {
+                    loop = false;
+                }
+            }
+        }
+        string getBody(Message msg)
+        {
+            try
+            {
+                msg.Formatter = new XmlMessageFormatter(new String[] { "System.String,mscorlib" });
+                string body = msg.Body.ToString();
+                return body;
+            }
+            catch (Exception e)
+            {
+                System.Windows.Forms.MessageBox.Show("Error gettingbody-" + e + "CHEK14");
+                return e.Message;
             }
 
-            //Start the loop of listening and forwarding.
-            while (true)
+        }
+        void DisplayMessage(Message msg)
+        {
+            try
             {
-                System.Windows.Forms.MessageBox.Show("Entered1." + Handler1Received.ToString() + Handler2Received.ToString());
-                //Reset Tasks.
-               // listenHandler1 = null;
-               // listenHandler2 = null;
-
-                //reset values so that next messages can use it again.
-                Handler1Received = Handler2Received = IncomingReceived= false;
-
-                //gets id from FWD message and sets corrID to RESPONSE. And then multicasts FWD
-                listenIncomingQueue();
-                SpinWait.SpinUntil(() => IncomingReceived);
-
-                //listenHandler1 = Task.Factory.StartNew(listenHandler1RE);
-                //listenHandler2 = Task.Factory.StartNew(listenHandler2RE);
-
-                //await Task.WhenAll(listenHandler1, listenHandler2);
-                System.Windows.Forms.MessageBox.Show("Entered2." + Handler1Received.ToString() + Handler2Received.ToString());
-
-                //Waits until "calibrate" is received.
-                SpinWait.SpinUntil(() => Handler1Received && Handler2Received);
-
-                System.Windows.Forms.MessageBox.Show("Entered3." + Handler1Received.ToString() + Handler2Received.ToString());
-
-                while (Handler1Received != true && Handler2Received != true)
-                {
-                    await Task.Delay(50);
-                }
-                if (Handler1Received == true && Handler2Received == true)
-                {
-                    OutgoingQueue.Send(Response); //send success reply to PsychoPy
-                    System.Windows.Forms.MessageBox.Show("success2.");
-                }
-                else
-                {
-                    System.Windows.Forms.MessageBox.Show("failure2." + Handler1Received.ToString() + Handler2Received.ToString());
-                }
+                msg.Formatter = new XmlMessageFormatter(new String[] { "System.String,mscorlib" });
+                string label = msg.Label.ToString();
+                string body = msg.Body.ToString();
+                System.Windows.Forms.MessageBox.Show(body);
+            }
+            catch (Exception e)
+            {
+                System.Windows.Forms.MessageBox.Show("Error getting label and body-" + e + "CHEK15");
             }
         }
         public void publish(String msg, String label)
@@ -295,58 +401,13 @@ namespace ServerHandlerFactory
             m.Label = label;
             multiRequestQueue.Send(m);
         }
-        private void listenIncomingQueue()
-        {
-            try
-            {
-                IncomingQueue.ReceiveCompleted += new ReceiveCompletedEventHandler(IncomingReceiveCompleted);
-
-                // Begin the asynchronous receive operation.
-                IncomingQueue.BeginReceive();
-            }
-            catch (Exception e)
-            {
-                System.Windows.Forms.MessageBox.Show(e.Message + "CHEK2");
-            }
-        }
-        void listenHandler1RE()
-        {
-            try
-            {
-                Handler1RE.ReceiveCompleted += new ReceiveCompletedEventHandler(Handler1ReceiveCompleted);
-
-                // Begin the asynchronous receive operation.
-                Handler1RE.BeginReceive();
-            }
-            catch (Exception e)
-            {
-                System.Windows.Forms.MessageBox.Show(e.Message + "CHEK3");
-                //m.Body = e.Message;
-                //m.Label = "EXCEPTION";
-            }
-        }
-        void listenHandler2RE()
-        {
-            try
-            {
-                Handler2RE.ReceiveCompleted += new ReceiveCompletedEventHandler(Handler2ReceiveCompleted);
-
-                // Begin the asynchronous receive operation.
-                Handler2RE.BeginReceive();
-            }
-            catch (Exception e)
-            {
-                System.Windows.Forms.MessageBox.Show(e.Message + "CHEK4");
-                //m.Body = e.Message;
-                //m.Label = "EXCEPTION";
-            }
-        }
-        bool processHandlerMessage(Message msg)  //Returns TRUE if the label is ACK; Else False. 
+        string processHandlerReply(Message msg)  //Returns TRUE if the label is ACK; Else False. 
         { //Assumes that the calling method has checked the CorrelationID
             string label = null;
             string body = null;
             try
             {
+                msg.Formatter = new XmlMessageFormatter(new String[] { "System.String,mscorlib" });
                 msg.Formatter = new XmlMessageFormatter(new String[] { "System.String,mscorlib" });
                 label = msg.Label.ToString();
                 body = msg.Body.ToString();
@@ -359,157 +420,31 @@ namespace ServerHandlerFactory
             {
                 case "ACK": //successful events will fall in this category. This is the expected case.
                     {
-                        if (Response.CorrelationId == msg.CorrelationId)
-                        {
                             System.Windows.Forms.MessageBox.Show(body + "-ACK-" + label);
-                            return true;
-                        }
-                        else
-                        {
-                            System.Windows.Forms.MessageBox.Show(body + "-ACK-" + label);
-                            return false;
-                        }
+                            return "ACK";
                     }
                 case "NOTIF": //only used for "calibrated" notification, which is sent by handler in the beginning.
                     {
                         if (body == "calibrate")
                         {
                             System.Windows.Forms.MessageBox.Show(body + "-CHEK10-" + label);
-                            return true;
+                            return "NOTIF";
                         }
                         else
-                            return false;
+                            return "ERR";
                     }
                 case "EXCEPTION":
                     {
-                        if (Response.CorrelationId == msg.CorrelationId)
-                        {
                             System.Windows.Forms.MessageBox.Show(body + "-EXCPTN-" + label);
-                            return true;
-                        }
-                        else
-                        {
-                            System.Windows.Forms.MessageBox.Show(body + "-EXCPTN-" + label);
-                            return false;
-                        }
+                            return "EXCEPTION";
                     }
                 case "ERR":
                     {
-                        if (Response.CorrelationId == msg.CorrelationId)
-                        {
                             System.Windows.Forms.MessageBox.Show(body + "-EXCPTN-" + label);
-                            return true;
-                        }
-                        else
-                        {
-                            System.Windows.Forms.MessageBox.Show(body + "-EXCPTN-" + label);
-                            return false;
-                        } //In Future, handle errors in a better way. Add --- retries; "Retrying message: count x" 
+                            return "ERR";
+                       //In Future, handle errors in a better way. Add --- retries; "Retrying message: count x" 
                     }
-                default: return false;
-            }
-        }
-        private void IncomingReceiveCompleted(Object source, ReceiveCompletedEventArgs asyncResult)
-        {
-            //Message receivedMessage = null;
-            IncomingReceived = false;
-            MessageQueue workingQueue = null;
-            Message msg = null;
-            try
-            {
-                // Connect to the queue.
-                workingQueue = (MessageQueue)source;
-
-                System.Windows.Forms.MessageBox.Show("Triggered");
-                // End the asynchronous receive operation.
-                fwd = workingQueue.EndReceive(asyncResult.AsyncResult);
-
-                // Process and forward Message
-                Response = fwd;
-                Response.CorrelationId = fwd.Id;
-                Response.ResponseQueue = IncomingQueue;
-                msg = new Message("ready");
-            }
-            catch (Exception e)
-            {
-                System.Windows.Forms.MessageBox.Show(e.Message + "CHEKPre6");
-            }
-            try
-               { 
-            multiRequestQueue.Send(msg,"REQ");
-                IncomingReceived = true;
-                // Restart the asynchronous receive operation.
-                workingQueue.BeginReceive();
-            }
-            catch(Exception e)
-            {
-                System.Windows.Forms.MessageBox.Show(e.Message+e.Source + "CHEK6");
-            }
-        }
-        private void Handler1ReceiveCompleted(object source, ReceiveCompletedEventArgs asyncResult)
-        {
-            Handler1Received = false;
-            Message m = new Message();
-            MessageQueue workingQueue = null;
-            try
-            {
-                // Connect to the queue.
-                workingQueue = (MessageQueue)source;
-                System.Windows.Forms.MessageBox.Show("Triggered1");
-
-                // End the asynchronous receive operation.
-                m = workingQueue.EndReceive(asyncResult.AsyncResult);
-
-                // Check if the message, which was received from Handler1, has the same correlation ID of the "forwarded" message.
- 
-                    //processHandlerMessage(m);
-                if (processHandlerMessage(m) == true)
-                    Handler1Received = true;
-                else
-                    Handler1Received = false;
-                // Restart the asynchronous receive operation.
-                workingQueue.BeginReceive();
-
-            }
-            catch (Exception e)
-            {
-                System.Windows.Forms.MessageBox.Show(e.Message +"-"+e.Source+"CHEK7");
-            }
-        }
-        private void Handler2ReceiveCompleted(Object source, ReceiveCompletedEventArgs asyncResult)
-        {
-            Handler2Received = false;
-            Message m = new Message();
-            MessageQueue workingQueue = null;
-            try
-            {
-                // Connect to the queue.
-                workingQueue = (MessageQueue)source;
-
-                System.Windows.Forms.MessageBox.Show("Triggered3");
-                // End the asynchronous receive operation.
-                m = workingQueue.EndReceive(asyncResult.AsyncResult);
-                if (processHandlerMessage(m) == true)
-                {
-                    Handler2Received = true;
-                }
-                else
-                    Handler2Received = false;
-                // Check if the message, which was received from Handler1, has the same correlation ID of the "forwarded" message.
-                /*  if (Response.CorrelationId == m.CorrelationId)
-                  { 
-                      Handler2Received = processHandlerMessage(m);
-                  }
-                  else
-                  {
-                      Handler2Received = false;
-                  } */
-                // Restart the asynchronous receive operation.
-                workingQueue.BeginReceive();
-            }
-            catch (Exception e)
-            {
-                System.Windows.Forms.MessageBox.Show(e.Message + "CHEK8");
+                default: return "UNKNOWN";
             }
         }
         public void Purge()
