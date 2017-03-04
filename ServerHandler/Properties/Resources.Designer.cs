@@ -70,6 +70,7 @@ namespace ServerHandler.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to C:\\Users\\Aniruddha\\Documents\\SDET\\experiment\\.
         /// </summary>
         internal static string mainPath {
             get {
@@ -78,6 +79,7 @@ namespace ServerHandler.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to C:\\Users\\Aniruddha\\Documents\\SDET\\test\\.
         /// </summary>
         internal static string testPath {
             get {

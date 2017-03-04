@@ -122,9 +122,11 @@
     <comment>The path where port files are stored</comment>
   </data>
   <data name="mainPath" xml:space="preserve">
+    <value>C:\\Users\\Aniruddha\\Documents\\SDET\\experiment\\</value>
     <comment>The path where main eye-tracking experiment files are stored</comment>
   </data>
   <data name="testPath" xml:space="preserve">
+    <value>C:\\Users\\Aniruddha\\Documents\\SDET\\test\\</value>
     <comment>The path where test eye-tracking data files are stored</comment>
   </data>
 </root>

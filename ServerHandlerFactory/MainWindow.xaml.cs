@@ -46,16 +46,13 @@ namespace ServerHandlerFactory
 
         private void Stop(object sender, RoutedEventArgs e)
         {
-            //Send notification to PsychoPy that SDET Handlers are shutting down
-            //Gracefully exit Handlers i.e., send "stop" message to them. They have to save the files and exit themselves.
-            //Keep SDET alive.
-            //Factory.Observer.publish("stop","REQ");
-            Factory.ExitHandlers();
+            //Send Highpriority "stop" message.
+            //Factory.ExitHandlers();
+            this.fakeSend("stop", "REQ");
         }
         private void send(object sender, RoutedEventArgs e)
         {
-            this.fakeSend("ready", "REQ");
-            //Factory.Begin();
+            this.fakeSend(incoming.Text.ToString().ToLower(), "REQ");
         }
         public void fakeSend(string msg, string label)
         {
