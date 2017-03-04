@@ -117,4 +117,14 @@
   <resheader name="writer">
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
+  <data name="configPath" xml:space="preserve">
+    <value>C:\\config\\</value>
+    <comment>The path where port files are stored</comment>
+  </data>
+  <data name="mainPath" xml:space="preserve">
+    <comment>The path where main eye-tracking experiment files are stored</comment>
+  </data>
+  <data name="testPath" xml:space="preserve">
+    <comment>The path where test eye-tracking data files are stored</comment>
+  </data>
 </root>

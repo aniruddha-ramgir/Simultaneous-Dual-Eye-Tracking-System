@@ -12,9 +12,10 @@ namespace ServerHandlerFactory
     class FactoryFacade
     {
         Thread FacadeThread;
+        public FactoryObserver Observer = null;
         int  Handler1ProcessID,Handler2ProcessID;
         public bool FactoryStarted { get; private set; }
-        public FactoryObserver Observer = null;
+
         public FactoryFacade()
         {
             //This is to avoid UI from blocking. Unnecessary 
@@ -22,23 +23,27 @@ namespace ServerHandlerFactory
             FacadeThread.Start();
             //Run();
         }
+
         void Run()
-        {
-            //use for loop and the below logic to make it work it multiple trackers
+        { //use for loop and the below logic to make it work it multiple trackers
+
             if (IsHandlerProcessRunning() != true) //Extend this to work with more than 2 Handlers. 
                 Handler1ProcessID= StartHandlerProcess("6555");
+
             //No need to wait here because, Handler waits internally after starting the server.
             Handler2ProcessID =  StartHandlerProcess("6556");
+
             Observer = new FactoryObserver("6555", "6556");
             Observer.SyncRun();
-            //Observer.Purge();
         }
+
+        #region Starting and exiting Handler process code
         private int StartHandlerProcess(string port)
         { 
             ProcessStartInfo psi = new ProcessStartInfo();
-            psi.WindowStyle = ProcessWindowStyle.Minimized; //set it to hidden 
+            psi.WindowStyle = ProcessWindowStyle.Normal;  
             psi.FileName = GetHandlerExecutablePath();
-            psi.Arguments = port;  //start with device 1 if its already running. //???
+            psi.Arguments = port;
             Process processServer = null;
             if (psi.FileName == string.Empty || File.Exists(psi.FileName) == false)
             {
@@ -57,9 +62,10 @@ namespace ServerHandlerFactory
                 System.Windows.Forms.MessageBox.Show(e.Message + "CHEK8");
                 FactoryStarted = false;
             }
-            Thread.Sleep(3000); // wait for it to spin up
+            Thread.Sleep(1000); // wait for it to spin up
             return processServer.Id;
         }
+
         private bool IsHandlerProcessRunning()
         {
             try
@@ -77,6 +83,7 @@ namespace ServerHandlerFactory
             }
             return false;
         }
+
         private string GetHandlerExecutablePath()
         {
             // ServerHandler default path from resource string           
@@ -101,6 +108,7 @@ namespace ServerHandlerFactory
             Process.GetProcessById(Handler1ProcessID).Kill();
             Process.GetProcessById(Handler2ProcessID).Kill();
         }
+        #endregion
     }
     class FactoryObserver
     {
@@ -124,27 +132,15 @@ namespace ServerHandlerFactory
         Message receivedMessage = null;
 
         //Message to be published to the  Handler queues
-        Message fwd = null;
+        //Message fwd = null;
 
         //Message to be sent back to PsychoPy
         Message Response = null;
 
         #endregion
 
-       /* #region
-        Thread ObserverWorker1,ObserverWorker2;
-        #endregion
-
-        #region Boolean Identifiers that tell us if we have received any message from their respective senders.
-        bool Handler1Received = false;
-        bool Handler2Received = false;
-        bool IncomingReceived = false;
-        #endregion */
-
         public FactoryObserver(string port1,string port2)
         {
-            //string incomingQueueName = "SDET-RQ";
-            //outgoingQueueName = "SDET-RE";
             try
             {
                 //SET ACCESS MODES. 
@@ -172,14 +168,16 @@ namespace ServerHandlerFactory
                 }
                 #endregion
 
-                #region DOES NOT WORK- Multicast Queue
-               // multiRequestQueue = new MessageQueue("FORMATNAME:MULTICAST=234.1.1.1:8001");
-                #endregion  
-
-                //We do not have to initialize Request/Incoming queues for Handler processes.
+                //We actually do not have to initialize Request/Incoming queues for Handler processes.
                 //Because we will be sending to the MULTI-CAST address.
+
+                #region DOES NOT WORK- Multicast Queue
+                // multiRequestQueue = new MessageQueue("FORMATNAME:MULTICAST=234.1.1.1:8001");
+                #endregion
+
+                //But as multicast is not working for some reason we are maintainaing RQ instances
                 //Processes can create their own RQ and RE queues.
-                //We are initialising RE queues here JUST TO BE SAFE.
+                //We are initialising then queues here JUST TO BE SAFE.
                 #region Process1 Request Queue
                 if (MessageQueue.Exists(@".\Private$\" + port1 + "RQ"))
                 {
@@ -228,9 +226,8 @@ namespace ServerHandlerFactory
                 }
                 #endregion
 
-                #region Message objects
+                #region Response Message object
                 Response = new Message();
-                fwd = new Message();
                 #endregion
             }
             catch (Exception e)
@@ -252,23 +249,20 @@ namespace ServerHandlerFactory
             Handler2RE.MessageReadPropertyFilter.SetDefaults();
             #endregion
 
-            bool loop = true;
+            bool runLoop = true;
             //SDET starts with a "calibrate" NOTIFICATION from the Handlers.
             //Doesnt matter if I receive messages from both parallely or serially. 
-            //I pick "SERIALLY" for now because I have to wait for one Handler or the other either way.
+            //I pick "SERIALLY" for now because, either way, I have to wait for one Handler or the other.
 
             if (processHandlerReply(Handler1RE.Receive()) =="NOTIF" && processHandlerReply(Handler2RE.Receive()) == "NOTIF")
             {
-                //set "Ready" variable to true, MAYBE.
-                System.Windows.Forms.MessageBox.Show("success1.");
+                //To optimize things, we could use a "Ready" variable here and handle "ready" request here itself.
             }
             //Start the loop of listening and forwarding.
-            while (loop)
+            while (runLoop)
             {
                 receivedMessage = new Message();
-                fwd = new Message();
                 Response = new Message();
-                System.Windows.Forms.MessageBox.Show("Entered1.");
 
                 //gets Message from PsychoPy
                 receivedMessage  = IncomingQueue.Receive();
@@ -276,13 +270,15 @@ namespace ServerHandlerFactory
                 //fwd.ResponseQueue = IncomingQueue; //This statement is WRONG because, Handlers will reply to their own Response Queues.
 
                 //Parallel Sending. Using Task here does not seem smart, but its just to be on the safe side.
-                 //Task.Run(() => Handler1RQ.Send(fwd));
+                //Task.Run(() => Handler1RQ.Send(fwd));
                 // Task.Run(() => Handler2RQ.Send(fwd));
+
+                //Task.Run does not work for some reason, so going for a "sequential Send".
                 Handler1RQ.Send(receivedMessage);
                 Handler2RQ.Send(receivedMessage);
-                System.Windows.Forms.MessageBox.Show("EnteredandSent2.");
+
                 //Using Parallel.Invoke to send message to two different queues at the same time.
-                //This is the best shot we have at parallel sending.
+                //This is the best shot we have at parallel sending. Doesn't work either.
                 //Parallel.Invoke(() =>{ Handler1RQ.Send(fwd); }, () => { Handler2RQ.Send(fwd); });
 
                 #region set Handler Queue PropertyFilters
@@ -298,6 +294,7 @@ namespace ServerHandlerFactory
                 msg1.Formatter = new XmlMessageFormatter(new String[] { "System.String,mscorlib" });
                 msg2.Formatter = new XmlMessageFormatter(new String[] { "System.String,mscorlib" });
                 #endregion
+
                 #region "BODY CORRELATION" if message from Handler1 is not correlated. 
                 if (!msg1.Body.Equals(receivedMessage.Body)) //Checks if message from Handler1 is correlated.
                 {
@@ -314,8 +311,6 @@ namespace ServerHandlerFactory
                     break;
                 }
                 #endregion
-
-                System.Windows.Forms.MessageBox.Show("Correlated!");
 
                 #region Handler1 has not received Acknowledgement
                 if (processHandlerReply(msg1) != "ACK") //Deals with Handler1's the received Acknowledgements or lack thereof
@@ -359,9 +354,11 @@ namespace ServerHandlerFactory
                 OutgoingQueue.Send(Response);
                 #endregion
 
-                if (getBody(receivedMessage) == "STOP")
+                if (receivedMessage.Body.ToString() == "stop")
                 {
-                    loop = false;
+                    
+                    runLoop = false;
+
                 }
             }
         }
@@ -446,11 +443,6 @@ namespace ServerHandlerFactory
                     }
                 default: return "UNKNOWN";
             }
-        }
-        public void Purge()
-        {
-            IncomingQueue.Purge();
-            OutgoingQueue.Purge();
         }
     }
 }

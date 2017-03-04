@@ -59,5 +59,30 @@ namespace ServerHandler.Properties {
                 resourceCulture = value;
             }
         }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to C:\\config\\.
+        /// </summary>
+        internal static string configPath {
+            get {
+                return ResourceManager.GetString("configPath", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        /// </summary>
+        internal static string mainPath {
+            get {
+                return ResourceManager.GetString("mainPath", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        /// </summary>
+        internal static string testPath {
+            get {
+                return ResourceManager.GetString("testPath", resourceCulture);
+            }
+        }
     }
 }
