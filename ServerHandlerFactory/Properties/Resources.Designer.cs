@@ -79,6 +79,15 @@ namespace ServerHandlerFactory.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to C:\\Users\\Aniruddha\\Documents\\SDET\\logs\\ServerHandlerFactory\\.
+        /// </summary>
+        internal static string logPath {
+            get {
+                return ResourceManager.GetString("logPath", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to SDET-RE.
         /// </summary>
         internal static string outgoingQueueName {

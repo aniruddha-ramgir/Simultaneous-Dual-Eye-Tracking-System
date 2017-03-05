@@ -40,8 +40,9 @@ namespace Calibration
         {
             // Activate/connect client
             // GazeManager.Instance.Activate(GazeManagerCore.ApiVersion.VERSION_1_0, GazeManager.ClientMode.Push,"localhost",6555);
-           
-
+            
+            //REMOVE THIS
+            ServerHandler.HandlerFacade.Observer.sendResponse("calibrate", "NOTIF");
             // Listen for changes in connection to server
             GazeManager.Instance.AddConnectionStateListener(this);
             port.Text = Convert.ToString(paraprocess.Program.Alpha._port);
@@ -122,7 +123,7 @@ namespace Calibration
             {
                 isCalibrated = true;
                 //Send message that it server is calibrated
-                ServerHandler.HandlerFacade.Observer.sendResponse("calibrate", "NOTIF");
+                //ServerHandler.HandlerFacade.Observer.sendResponse("calibrate", "NOTIF");
                 UpdateState();
             }
             else
@@ -177,6 +178,7 @@ namespace Calibration
         private void WindowClosed(object sender, EventArgs e)
         {
             GazeManager.Instance.Deactivate();
+            Environment.Exit(0);
         }
         private void TextBox_TextChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
         {

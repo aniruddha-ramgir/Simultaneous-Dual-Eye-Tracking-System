@@ -9,6 +9,7 @@ namespace ServerHandlerFactory
     public partial class MainWindow : Window
     {
         FactoryFacade Factory;
+        string body, label;
         MessageQueue IncomingQueue = null;
         MessageQueue OutgoingQueue = null;
 
@@ -43,28 +44,21 @@ namespace ServerHandlerFactory
             }
             #endregion
         }
-
-        private void Stop(object sender, RoutedEventArgs e)
-        {
-            //Send Highpriority "stop" message.
-            this.fakeSend("stop", "REQ");
-            Factory.ExitServerHandlers();
-            /* Message msg = new Message();
-             msg = OutgoingQueue.Receive();
-             msg.Formatter = new XmlMessageFormatter(new System.String[] { "System.String,mscorlib" });
-             if(msg.Body.ToString()=="exit" && msg.Label.ToString() == "ACK")
-             {
-                 //When an acknowledgment is received, we can close the proccesses.
-                 Factory.ExitServerHandlers();
-             } */
-        }
+        
         private void send(object sender, RoutedEventArgs e)
         {
-            if(incoming.Text.ToString().ToLower()!="name")
-             this.fakeSend(incoming.Text.ToString().ToLower(), "NAME");
-            else
-                this.fakeSend("aniruddha", "REQ");
-
+             this.fakeSend(body.ToLower(), label.ToUpper());
+            /*
+            Factory.ExitServerHandlers();
+            Message msg = new Message();
+            msg = OutgoingQueue.Receive();
+            msg.Formatter = new XmlMessageFormatter(new System.String[] { "System.String,mscorlib" });
+            if (msg.Body.ToString() == "exit" && msg.Label.ToString() == "ACK")
+            {
+                //When an acknowledgment is received, we can close the proccesses.
+                Factory.ExitServerHandlers();
+            }
+            */
         }
         public void fakeSend(string msg, string label)
         {
@@ -76,6 +70,12 @@ namespace ServerHandlerFactory
         }
         private void incoming_TextChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
         {
+            body = incoming.Text;
+        }
+
+        private void incoming_Copy_TextChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
+        {
+            label = incoming_Copy.Text;
         }
     }
 }

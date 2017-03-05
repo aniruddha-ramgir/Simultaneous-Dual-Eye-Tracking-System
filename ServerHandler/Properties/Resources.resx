@@ -121,6 +121,10 @@
     <value>C:\\config\\</value>
     <comment>The path where port files are stored</comment>
   </data>
+  <data name="logPath" xml:space="preserve">
+    <value>C:\\Users\\Aniruddha\\Documents\\SDET\\logs\\ServerHandler\\</value>
+    <comment>The path where ServerHandler log files are stored</comment>
+  </data>
   <data name="mainPath" xml:space="preserve">
     <value>C:\\Users\\Aniruddha\\Documents\\SDET\\experiment\\</value>
     <comment>The path where main eye-tracking experiment files are stored</comment>

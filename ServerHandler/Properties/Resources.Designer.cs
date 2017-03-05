@@ -70,6 +70,15 @@ namespace ServerHandler.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to C:\\Users\\Aniruddha\\Documents\\SDET\\logs\\ServerHandler\\.
+        /// </summary>
+        internal static string logPath {
+            get {
+                return ResourceManager.GetString("logPath", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to C:\\Users\\Aniruddha\\Documents\\SDET\\experiment\\.
         /// </summary>
         internal static string mainPath {

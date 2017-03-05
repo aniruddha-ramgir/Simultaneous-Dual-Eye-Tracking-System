@@ -7,8 +7,9 @@ using System.Threading;
 
 namespace ServerHandler
 {
-    static class HandlerFacade
+    static class HandlerFacade //Entry point for the ServerHandler Process
     {
+       public static string logFilePathName = Resources.logPath+string.Format(@"{0}.txt", DateTime.Now.Ticks);
        public static Thread ObserverWorker = null;
        public static HandlerObserver Observer;
        public static Int32 _port { get; private set; }
@@ -28,6 +29,11 @@ namespace ServerHandler
             String _ConfigPath = Resources.configPath+_port.ToString()+".cfg"; //path can be stored in a editable resource. OR within this project, use relative path
             String _ServerPath = GetServerExecutablePath();
 
+            //If SDET log folder doesn't exist, the below line creates it.
+            System.IO.Directory.CreateDirectory(Resources.logPath);
+
+            File.AppendAllText(logFilePathName, "This is the log file for the Tracker associated with the port number:" + _port.ToString()+ Environment.NewLine);
+            File.AppendAllText(logFilePathName, "Inside HandlerFacade Main()" + Environment.NewLine);
             //Start ServerHandler
             if (!paraprocess.Program.launch(_port, _ConfigPath, _ServerPath))
                 return;
@@ -89,23 +95,21 @@ namespace ServerHandler
         #region Constructor code
         public HandlerObserver(Int32 _port) //creates a queue using port for the Handler process.
         {
+            File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, "Inside HandlerObserver Constructor." + Environment.NewLine);
             port = _port;
-            Run();
-        }
-        public void Run()
-        {
             receivedMessage = new Message();
             try
             {
-                IncomingQueueName = port.ToString() + "RQ";
-                OutgoingQueueName = port.ToString() + "RE";
+                IncomingQueueName = _port.ToString() + "RQ";
+                OutgoingQueueName = _port.ToString() + "RE";
+
                 #region IncomingQueue
                 if (MessageQueue.Exists(@".\Private$\" + IncomingQueueName))
                 {
                     //Just assign them to our Request queue objects, if they already exist.
                     IncomingQueue = new MessageQueue(@".\Private$\" + IncomingQueueName);
 
-                   // IncomingQueue.MulticastAddress = "234.1.1.1:8001"; //can be passed an command line argument
+                    // IncomingQueue.MulticastAddress = "234.1.1.1:8001"; //can be passed an command line argument
                     //System.Windows.Forms.MessageBox.Show("multicast set");
                 }
                 else
@@ -113,11 +117,11 @@ namespace ServerHandler
                     // Create the Request Queue
                     MessageQueue.Create(@".\Private$\" + IncomingQueueName);
                     IncomingQueue = new MessageQueue(@".\Private$\" + IncomingQueueName);
-                   // IncomingQueue.SetPermissions("ANONYMOUS LOGON", MessageQueueAccessRights.WriteMessage);
+                    // IncomingQueue.SetPermissions("ANONYMOUS LOGON", MessageQueueAccessRights.WriteMessage);
 
                     //IncomingQueue.MulticastAddress = "234.1.1.1:8001"; //can be passed an command line argument
-                                                                       // IncomingQueue.SetPermissions("ANONYMOUS LOGON", MessageQueueAccessRights.ReceiveMessage);
-                                                                       //System.Windows.Forms.MessageBox.Show("multicast set");
+                    // IncomingQueue.SetPermissions("ANONYMOUS LOGON", MessageQueueAccessRights.ReceiveMessage);
+                    //System.Windows.Forms.MessageBox.Show("multicast set");
 
                 }
                 #endregion
@@ -148,7 +152,7 @@ namespace ServerHandler
             }
             catch (Exception e)
             {
-                System.Windows.Forms.MessageBox.Show(e.Message+"CHEK13", e.Source);
+                File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, "An Exception has occured @HandlerObserver Constructor: " + e + Environment.NewLine);
             }
         }
         #endregion
@@ -159,13 +163,13 @@ namespace ServerHandler
             try
             {
                 IncomingQueue.ReceiveCompleted += new ReceiveCompletedEventHandler(MyReceiveCompleted);
-
                 // Begin the asynchronous receive operation.
                 IncomingQueue.BeginReceive();
+                File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, "HandlerObserver has begun to receive messages." + Environment.NewLine);
             }
             catch (Exception e)
             {
-                System.Windows.Forms.MessageBox.Show(e.Message + "CHEK18");
+                File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, "An Exception has occured @listenIncomingQueue: " + e + Environment.NewLine);
             }
         } 
         private void MyReceiveCompleted(Object source, ReceiveCompletedEventArgs asyncResult)
@@ -184,15 +188,18 @@ namespace ServerHandler
                 // End the asynchronous receive operation.
                 receivedMessage = workingQueue.EndReceive(asyncResult.AsyncResult);
 
-                //System.Windows.Forms.MessageBox.Show("Sent at: "+receivedMessage.SentTime.Millisecond.ToString()+"Arrived at:"+ receivedMessage.ArrivedTime.Millisecond.ToString());
-
                 // Process Message
                 executeMessage(receivedMessage);
+
+                //log event
+                File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, "HandlerObserver has received a message and it is being executed." + Environment.NewLine);
+
+                //Restart the asynchronous receive operation.
                 workingQueue.BeginReceive();
             }
             catch (Exception e)
             {
-                System.Windows.Forms.MessageBox.Show(e.Message + "CHEK12");
+                File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, "An Exception has occured @MyReceiveCompleted: " + e + Environment.NewLine);
             }
         }
         #endregion
@@ -210,13 +217,12 @@ namespace ServerHandler
             }
             catch(Exception e)
             {
-                System.Windows.Forms.MessageBox.Show("Error getting label and body-" + e);
+                File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, "An Exception has occured @executeMessage: " + e + Environment.NewLine);
             }
             switch (label) //act based on the label Type
             {
                 case "REQ":
                     {
-                        //System.Windows.Forms.MessageBox.Show("CHEK16" + body + label);
                         return handleRequest(body);
                     }
                 case "TYPE":
@@ -229,12 +235,10 @@ namespace ServerHandler
                     }
                 case "EXCEPTION":
                     {
-                        //System.Windows.Forms.MessageBox.Show(body + label);
                         return handleException(body);
                     }
                 case "ERR":
                     {
-                        //System.Windows.Forms.MessageBox.Show(body + label);
                         return handleException(body); //In Future, handle errors in a better way
                     }
                 case "NOTIF":
@@ -253,20 +257,23 @@ namespace ServerHandler
         #region These are practically useless
         public bool handleAcknowledgement(string body)
         {
-            System.Windows.MessageBox.Show("How did you get here?. Do not send ACKs to the Handler.");
+            File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, "How did you get here?. Stimuli-Module should not send ACKs to the Handler." + body+Environment.NewLine);
             return true;
         }
         public bool handleException(string body)
         {
-            if (System.Windows.Forms.MessageBox.Show(body) == System.Windows.Forms.DialogResult.OK)
-            {
-                return true;
-            }
-            return false;
+            File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, "An Exception was received from the FactoryFacade ->This should not be happening, because FactoryFacade should not send any ERRs or EXCEPTIONSs to ServerHandler.---" + body + Environment.NewLine);
+            /* if (System.Windows.Forms.MessageBox.Show(body) == System.Windows.Forms.DialogResult.OK)
+             {
+             //No interruption is necessary as we are logging everything.
+                 return true;
+             }
+             return false; */
+            return true;
         }
         public bool handleNotification(string body)
         {
-            System.Windows.MessageBox.Show("How did you get here?. Do not send NOTIFs to the Handler.");
+            File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, "How did you get here?. Stimuli-Module should not send NOTIFs to the Handler." + body + Environment.NewLine);
             return true;
         }
         #endregion
@@ -279,14 +286,14 @@ namespace ServerHandler
                     {
                         if (paraprocess.Program.Alpha.IsCalibrated() == true)
                         {
-                            //System.Windows.Forms.MessageBox.Show("Fake calibrated.");
                             sendResponse(body,"ACK");
+                            File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, "Tracker is calibrated. Sending acknowledgement back to the Factory" + Environment.NewLine);
                             return true;
                         }
                         else
                         {
-                            System.Windows.Forms.MessageBox.Show("Please calibrate the Trackers."); //retry if OK, else, ERR. Or PsychoPy can send a message
                             sendResponse(body, "ERR");
+                            File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, "Tracker is not calibrated. Sending ERR message back to the Factory" + Environment.NewLine);
                             return true;
                         }
                     }
@@ -294,19 +301,21 @@ namespace ServerHandler
                     {
                         if (!paraprocess.Program.Alpha.IsCalibrated())
                         {
-                            System.Windows.Forms.MessageBox.Show(port.ToString()+"Not Calibrated.");
                             sendResponse(body, "ERR");
+                            File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, port.ToString() + " Tracker is not calibrated. Sending ERR. Calibrate before recording." + Environment.NewLine);
                             return false;
                         }
                         paraprocess.Program.Alpha.StartListening();
                         if (paraprocess.Program.Alpha.IsListening())
                         {
                             sendResponse(body, "ACK");
+                            File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, port.ToString() + " Tracker is listening to gazeData now." + Environment.NewLine);
                             return true;
                         }
                         else
                         {
                             sendResponse(body, "ERR");
+                            File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, port.ToString() + " Tracker is not listening to gazeData now." + Environment.NewLine);
                             return false;
                         }
                     }
@@ -314,13 +323,14 @@ namespace ServerHandler
                     {
                         if (paraprocess.Program.Alpha.pauseListening())
                         {
-                            System.Windows.Forms.MessageBox.Show("PAUSE failed. Sending ERR. CHEK23");
                             sendResponse(body, "ACK");
+                            File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, " Pause success." + Environment.NewLine);
                             return true;
                         }
                         else
                         {
                             sendResponse(body, "ERR");
+                            File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, " Pause failed.." + Environment.NewLine);
                             return true;
                         }
                     }
@@ -328,17 +338,19 @@ namespace ServerHandler
                     {
                         if (!paraprocess.Program.Alpha.StopListening())
                         {
-                            System.Windows.Forms.MessageBox.Show("STOP failed. Sending ERR. CHEK22");
                             sendResponse(body, "ERR");
+                            File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, " Stop failed." + Environment.NewLine);
                             return false;
                         }
                         sendResponse(body,"ACK");
+                        File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, " Stop success.Deactivating." + Environment.NewLine);
                         return paraprocess.Program.Alpha.Deactivate();
                     }
 
                 default:
                     {
                         sendResponse(body, "UNKNOWN");
+                        File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, " Unrecognized body----" + body + Environment.NewLine);
                         return false;
                     }
             }
@@ -347,15 +359,22 @@ namespace ServerHandler
         {
             try
             {
-                if (body == "test")
+                if (body.ToLower() == "test")
+                {
                     paraprocess.Program.Alpha.isTest = true;
+                    sendResponse(body, "ACK");
+                }
                 else
+                {
                     paraprocess.Program.Alpha.isTest = false;
+                    sendResponse(body, "ACK");
+                }
+                File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, "Experiment type has been set succesfully." + Environment.NewLine);
                 return true;
             }
             catch(Exception e)
             {
-                System.Windows.MessageBox.Show("CHEK17" + e);
+                File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, "Exception occured at HandlerFacade.HandlerObserver.HandleType() : "+e + Environment.NewLine);
                 return false;
             }
         }
@@ -363,11 +382,15 @@ namespace ServerHandler
         {
             try
             {
-                paraprocess.Program.Alpha._name = body;
+                paraprocess.Program.Alpha._sessionName = body.ToLower();
+                sendResponse(body, "ACK");
+                File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, "Experiment session-name has been set succesfully." + Environment.NewLine);
                 return true;
             }
-            catch
+            catch(Exception e)
             {
+                sendResponse(body, "ERR");
+                File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, "Exception occured at HandlerFacade.HandlerObserver.HandleName() : " + e + Environment.NewLine);
                 return false;
             }
         }
@@ -380,7 +403,7 @@ namespace ServerHandler
             Response.Body = body;
             Response.Label = label;
             OutgoingQueue.Send(Response);
-            //System.Windows.Forms.MessageBox.Show("CHEK9");
+            File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, "Sending message to Factory Facade" + Environment.NewLine);
         }
     }
 }

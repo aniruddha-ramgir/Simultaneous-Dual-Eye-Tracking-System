@@ -17,10 +17,11 @@ namespace paraprocess
         public static EyeTribeHandler Alpha;
         public static bool launch(Int32 portnumber, string configPath,string serverPath)
         {
+            File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, "Inside paraprocess.Program.launch()" + Environment.NewLine);
             Alpha = new paraprocess.EyeTribeHandler(portnumber, configPath, serverPath);
             if (Alpha.ServerStarted != true)
             {
-                MessageBox.Show("Unable to start Eyetribe Server process #1");
+                File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, "Unable to start Eyetribe Server process #1 @paraprocess.Program.launch" + Environment.NewLine);
                 return false;
             } 
             return true; //should return acknowledgement that processes have begun successfully
@@ -47,7 +48,7 @@ namespace paraprocess
         #region Relevant variables
         public int _id { get; private set; }
         public Int32 _port { get; private set; }
-        public string _name { get;  set; }
+        public string _sessionName { get;  set; }
         private string _cPath;
         private string _sPath;
         private string workingFilePath = null;
@@ -65,6 +66,8 @@ namespace paraprocess
             _port = pNum;
             _cPath = cPath;
             _sPath = sPath;
+            File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, "Inside paraprocess.EyeTribeHandler Constructor."+Environment.NewLine);
+
             if (IsServerProcessRunning() == true) //check if there is a server currently running
             {
                 _id = 2;
@@ -82,10 +85,71 @@ namespace paraprocess
             // Connect client
             GazeManager.Instance.Activate(GazeManagerCore.ApiVersion.VERSION_1_0, "localhost", _port); // GazeManagerCore.ClientMode.Push is default
 
-            //If SDET test and main folders don't exist, the below line creates automatically.
+            //If SDET test and main folders don't exist, the below line creates them.
             System.IO.Directory.CreateDirectory(Resources.testPath);
             System.IO.Directory.CreateDirectory(Resources.mainPath);
         }
+
+        #region These methods deal with starting Servers and also implement IServerHandler
+        private bool IsServerProcessRunning()
+        {
+            try
+            {
+                foreach (Process p in Process.GetProcesses())
+                {
+                    if (p.ProcessName.ToLower() == "eyetribe")
+                    {
+                        return true;
+
+                    }
+
+                }
+            }
+            catch (Exception e)
+            {
+                File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, "An Exception has occured @IsServerProcessRunning: " + e + Environment.NewLine);
+                return false;
+            }
+            return false;
+        }
+        private void StartServerProcess()
+        {
+            ProcessStartInfo psi = new ProcessStartInfo();
+            psi.WindowStyle = ProcessWindowStyle.Normal; //set it to hidden 
+            psi.FileName = _sPath;
+            psi.Arguments = _cPath;
+            if (psi.FileName == string.Empty || File.Exists(psi.FileName) == false)
+            {
+                ServerStarted = false;
+                File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, "Starting Eye-Tribe server failed." + Environment.NewLine);
+                return;
+            }
+            try
+            {
+                Process processServer = new Process();
+                processServer.StartInfo = psi;
+                processServer.Start();
+                File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, "Starting Eye-Tribe server success." + Environment.NewLine);
+                ServerStarted = true;
+            }
+            catch (Exception e)
+            {
+                File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, "An Exception has occured @StarServerrProcess: " + e + Environment.NewLine);
+                ServerStarted = false;
+            }
+            Thread.Sleep(200); // wait for it to load
+        }
+
+        bool IServerHandler.IsServerProcessRunning()
+        {
+            throw new NotImplementedException();
+        }
+
+        void IServerHandler.StartServerProcess()
+        {
+            throw new NotImplementedException();
+        }
+        #endregion
 
         public bool IsListening()
         {
@@ -111,62 +175,65 @@ namespace paraprocess
         {
             try
             {
+                File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, "StartListening() called." + Environment.NewLine);
                 //string _name = Microsoft.VisualBasic.Interaction.InputBox("Please enter the name of the current experiment? This will be used to identify the current session", "Experiment Identifier");
                 //Set path of the .csv file to be used
                 if (isTest)
-                    workingFilePath = Resources.testPath + _name + _port.ToString() + ".csv";
+                    workingFilePath = Resources.testPath + _sessionName + _port.ToString() + ".csv";
                 else
-                    workingFilePath = Resources.mainPath + _name + _port.ToString() + ".csv";
+                    workingFilePath = Resources.mainPath + _sessionName + _port.ToString() + ".csv";
 
                 //If the file doesn't exist, it creates a new file 
                 //and appends "FeatureNames" string to it, as the first line
 
                 File.AppendAllText(workingFilePath, featureNames+Environment.NewLine);
+                File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, ".csv file created." + Environment.NewLine);
 
                 // Register this class for events
                 GazeManager.Instance.AddGazeListener(this);
+                File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, "Listener added." + Environment.NewLine);
             }
             catch (Exception e)
             {
-                MessageBox.Show("CHEK20" + e);
+                File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, "An exception has occured @ StartListening()" + e + Environment.NewLine);
             }
 
         }
         public bool pauseListening()
         {
             if (!IsListening())
-            {
                 return true;
-            }
             try
             {
                 bool result = GazeManager.Instance.RemoveGazeListener(this);
 
+                File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, "Listener Removed. Waiting for gazeData queues to get emptied." + Environment.NewLine);
+                
                 //Waits until the data Queue is completely dequeued.
-                SpinWait.SpinUntil(() => responseData1 == null && responseData2 == null);
+                SpinWait.SpinUntil(() => responseData1.Count == 0 && responseData2.Count == 0);
+
+                File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, "GazeData Queues have been emptied." + Environment.NewLine);
                 return result;
             }
-            catch
+            catch(Exception e)
             {
+                File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, "An Exception has occured @ PauseListening()." + e + Environment.NewLine);
                 return false;
+
             }
         }
         public bool StopListening()
         {
             if (!IsListening())
-            { 
-            /*    //it might also be in the "pause" state
-                _fileOut.Close();
-                _file.Close(); */
                 return true;
-            }
             bool result = GazeManager.Instance.RemoveGazeListener(this);
-            MessageBox.Show("SpinWait Begins.CHEK21");
+
+            File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, "Waiting for gazeData queues to get emptied.@StopListening()" + Environment.NewLine);
 
             //Waits until the data Queue is completely dequeued.
             SpinWait.SpinUntil(() => responseData1.Count == 0 && responseData2.Count == 0);
+            File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, "GazeData Queues have been emptied." + Environment.NewLine);
 
-            MessageBox.Show("SpinWait completed.CHEK22");
             return result;
         }
         public bool Deactivate()
@@ -174,10 +241,11 @@ namespace paraprocess
             // If not activated dont deactivate.
             if (!IsActivated())
             {
+                File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, "Listener deactivated." + Environment.NewLine);
                 return true;
             }
-
             GazeManager.Instance.Deactivate();
+            File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, "Listener deactivated." + Environment.NewLine);
             return IsActivated();
 
         }
@@ -262,64 +330,5 @@ namespace paraprocess
                 );
         }
 
-        #region These methods deal with starting Servers and also implement IServerHandler
-        private bool IsServerProcessRunning()
-        {
-            try
-            {
-                foreach (Process p in Process.GetProcesses())
-                {
-                    if (p.ProcessName.ToLower() == "eyetribe")
-                    {
-                        return true;
-
-                    }
-
-                }
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e);
-                return false;
-            }
-            return false;
-        }
-        private void StartServerProcess()
-        {
-            ProcessStartInfo psi = new ProcessStartInfo();
-            psi.WindowStyle = ProcessWindowStyle.Normal; //set it to hidden 
-            psi.FileName = _sPath;
-                psi.Arguments = _cPath;
-                //psi.Arguments = "C:\\Users\\Aniruddha\\AppData\\Local\\EyeTribe\\config.cfg"; //should vary for each tracker. This should be stored in the software package
-            if (psi.FileName == string.Empty || File.Exists(psi.FileName) == false)
-            {
-                ServerStarted = false;
-                return;
-            }
-            try
-            {
-                Process processServer = new Process();
-                processServer.StartInfo = psi;
-                processServer.Start();
-                ServerStarted = true;
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e);
-                ServerStarted = false;
-            }
-            Thread.Sleep(200); // wait for it to load
-        }
-
-        bool IServerHandler.IsServerProcessRunning()
-        {
-            throw new NotImplementedException();
-        }
-
-        void IServerHandler.StartServerProcess()
-        {
-            throw new NotImplementedException();
-        }
-        #endregion
     }
 }

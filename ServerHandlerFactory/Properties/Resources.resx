@@ -125,6 +125,10 @@
     <value>SDET-RQ</value>
     <comment>default path for the receving queue for SDET</comment>
   </data>
+  <data name="logPath" xml:space="preserve">
+    <value>C:\\Users\\Aniruddha\\Documents\\SDET\\logs\\ServerHandlerFactory\\</value>
+    <comment>default path for storing HandlerFactory-related logs.</comment>
+  </data>
   <data name="outgoingQueueName" xml:space="preserve">
     <value>SDET-RE</value>
     <comment>default path for the replying queue for SDET</comment>

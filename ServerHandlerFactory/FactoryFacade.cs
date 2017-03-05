@@ -10,6 +10,7 @@ namespace ServerHandlerFactory
 {
     class FactoryFacade
     {
+        public static string logFilePathName = Resources.logPath + string.Format(@"{0}.txt", DateTime.Now.Ticks);
         Thread FacadeThread;
         public FactoryObserver Observer = null;
         int  Handler1ProcessID,Handler2ProcessID;
@@ -17,10 +18,14 @@ namespace ServerHandlerFactory
 
         public FactoryFacade()
         {
+            //If SDET log folder doesn't exist, the below line creates it.
+            System.IO.Directory.CreateDirectory(Resources.logPath);
+
+            File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, "Inside FactoryFacade Constructor. Creating new Thread for FactoryObserver." + Environment.NewLine);
+
             //This is to avoid UI from blocking. Unnecessary 
             FacadeThread = new Thread(this.Run);
             FacadeThread.Start();
-            //Run();
         }
 
         void Run()
@@ -58,7 +63,7 @@ namespace ServerHandlerFactory
             }
             catch (Exception e)
             {
-                System.Windows.Forms.MessageBox.Show(e.Message + "CHEK8");
+                File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, "An Exception has occured @StartHandlerProcess: " + e + Environment.NewLine);
                 FactoryStarted = false;
             }
             Thread.Sleep(1000); // wait for it to spin up
@@ -77,7 +82,7 @@ namespace ServerHandlerFactory
             }
             catch (Exception e)
             {
-                System.Windows.Forms.MessageBox.Show(e.Message + "CHEK1");
+                File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, "An Exception has occured @IsHandlerProcessRunning: " + e + Environment.NewLine);
                 return false;
             }
             return false;
@@ -117,7 +122,7 @@ namespace ServerHandlerFactory
         MessageQueue OutgoingQueue = null;
 
         //MULITCAST Queue. Handlers will receive requests from this queue.
-        MessageQueue multiRequestQueue = null;
+        //MessageQueue multiRequestQueue = null;
 
         //Request Queues. Write messages to RQ.
         MessageQueue Handler1RQ = null;
@@ -140,6 +145,7 @@ namespace ServerHandlerFactory
 
         public FactoryObserver(string port1,string port2)
         {
+            File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, "Inside FactoryObserver Constructor.Creating/assigning message Queues for FactoryObserver." + Environment.NewLine);
             try
             {
                 //SET ACCESS MODES. 
@@ -231,11 +237,12 @@ namespace ServerHandlerFactory
             }
             catch (Exception e)
             {
-                System.Windows.Forms.MessageBox.Show(e.Message+"CHEK1");
+                File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, "An Exception has occured @FactoryObserver Constructor: " + e + Environment.NewLine);
             }
         }
         public void SyncRun()
         {
+            File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, "FactoryObserver SyncRun begins." + Environment.NewLine);
             bool TrackersCalibrated = false;
             #region set Queue Formatter
             IncomingQueue.Formatter = new XmlMessageFormatter(new String[] { "System.String,mscorlib" });
@@ -263,12 +270,14 @@ namespace ServerHandlerFactory
             //Start the loop of listening and forwarding.
             while (runLoop)
             {
+                File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, "Starting/Restarting FactoryObserver SyncRun" + Environment.NewLine);
                 receivedMessage = new Message();
                 Response = new Message();
 
                 //gets Message from PsychoPy
                 receivedMessage  = IncomingQueue.Receive();
                 receivedMessage.Formatter = new XmlMessageFormatter(new String[] { "System.String,mscorlib" });
+                File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, "FactoryObserver SyncRun Loop has received a message from Stimuli-module." + Environment.NewLine);
 
                 //Parallel Sending. Using Task here does not seem smart, but its just to be on the safe side.
                 //Task.Run(() => Handler1RQ.Send(fwd));
@@ -299,19 +308,19 @@ namespace ServerHandlerFactory
                 #region "BODY-based CORRELATION" if message from Handler1 is not correlated. 
                 if (!msg1.Body.Equals(receivedMessage.Body)) //Checks if message from Handler1 is correlated.
                 {
-                    System.Windows.Forms.MessageBox.Show(msg1.Body.ToString());
-                    System.Windows.Forms.MessageBox.Show("Not Same MSG1.");
+                    File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, "Message received from Handler 1 does not correlate with the message received from the Stimuli-Module" + Environment.NewLine);
                     break;
                 }
                 #endregion
                 #region "BODY-based CORRELATION" if message from Handler2 is not correlated.
                 if (!msg2.Body.Equals(receivedMessage.Body))
                 {
-                    System.Windows.Forms.MessageBox.Show(msg2.Body.ToString());
-                    System.Windows.Forms.MessageBox.Show("Not Same MSG2.");
+                    File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, "Message received from Handler 2 does not correlate with the message received from the Stimuli-Module" + Environment.NewLine);
                     break;
                 }
                 #endregion
+
+                File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, "Messages received from both Handler 1 & 2 correlate with the message received from the Stimuli-Module" + Environment.NewLine);
 
                 #region Handler1 has not received Acknowledgement
                 if (processHandlerReply(msg1) != "ACK") //Deals with Handler1's the received Acknowledgements or lack thereof
@@ -328,7 +337,6 @@ namespace ServerHandlerFactory
                     }
                     Response.ResponseQueue = IncomingQueue;
                     OutgoingQueue.Send(Response);
-                    //continue;
                 }
                 #endregion
                 #region Handler2 has not received Acknowledgement
@@ -351,6 +359,7 @@ namespace ServerHandlerFactory
 
                 if (receivedMessage.Body.ToString() == "stop")
                 {
+                    File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, "Received a STOP-message. SyncRun will not loop from here on." + Environment.NewLine);
                     runLoop = false;
                 }
 
@@ -360,6 +369,7 @@ namespace ServerHandlerFactory
                 OutgoingQueue.Send(Response);
                 #endregion
 
+                File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, "FactoryObserver SyncRun Loop ends." + Environment.NewLine);
             }
         }
         string getBody(Message msg)
@@ -372,18 +382,18 @@ namespace ServerHandlerFactory
             }
             catch (Exception e)
             {
-                System.Windows.Forms.MessageBox.Show("Error gettingbody-" + e + "CHEK14");
+                File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, "An Exception has occured @getBody: " + e + Environment.NewLine);
                 return e.Message;
             }
 
         }
-        public void publish(String msg, String label)
+      /*  public void publish(String msg, String label)
         {
             Message m = new Message();
             m.Body = msg;
             m.Label = label;
             multiRequestQueue.Send(m);
-        }
+        } */
         string processHandlerReply(Message msg)
         { //Assumes that the calling method has checked for a correlation
             string label = null;
@@ -397,7 +407,7 @@ namespace ServerHandlerFactory
             }
             catch (Exception e)
             {
-                System.Windows.Forms.MessageBox.Show("Error getting label and body-" + e + "CHEK5");
+                File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, "An Exception has occured @processHandlerReply: " + e + Environment.NewLine);
             }
             switch (label) //act based on the label Type
             {
@@ -417,13 +427,14 @@ namespace ServerHandlerFactory
                     }
                 case "EXCEPTION":
                     {
-                            System.Windows.Forms.MessageBox.Show(body + "-CHEK10-" + label);
-                            return "EXCEPTION";
+                        File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, "FactoryObserver has received an EXCEPTION from one of the Handlers: " + body + Environment.NewLine);
+                        return "EXCEPTION";
                     }
                 case "ERR":
                     {
-                            System.Windows.Forms.MessageBox.Show(body + "-CHEK10.1-" + label);
-                            return "ERR";
+
+                        File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, "FactoryObserver has received an ERR from one of the Handlers: "+ body + Environment.NewLine);
+                        return "ERR";
                        //In Future, handle errors in a better way. Add --- retries; "Retrying message: count x" 
                     }
                 default: return "UNKNOWN";
