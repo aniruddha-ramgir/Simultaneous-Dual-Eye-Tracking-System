@@ -31,18 +31,16 @@ namespace Calibration
             this.ContentRendered += (sender, args) => InitClient();
             this.KeyDown += MainWindow_KeyDown;
         }
-        public static void exit()
+        /*public static void exit()
         {
             //System.Windows.Application.Current.Shutdown();
             System.Diagnostics.Process.GetCurrentProcess().Kill();
-        }
+        } */
         private void InitClient()
         {
             // Activate/connect client
             // GazeManager.Instance.Activate(GazeManagerCore.ApiVersion.VERSION_1_0, GazeManager.ClientMode.Push,"localhost",6555);
            
-            //REMOVE THIS.
-            ServerHandler.HandlerFacade.Observer.sendResponse("calibrate", "NOTIF");
 
             // Listen for changes in connection to server
             GazeManager.Instance.AddConnectionStateListener(this);
@@ -124,7 +122,7 @@ namespace Calibration
             {
                 isCalibrated = true;
                 //Send message that it server is calibrated
-                //ServerHandler.HandlerFacade.Observer.sendMessage("calibrate","NOTIF"); 
+                ServerHandler.HandlerFacade.Observer.sendResponse("calibrate", "NOTIF");
                 UpdateState();
             }
             else

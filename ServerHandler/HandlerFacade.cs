@@ -11,7 +11,7 @@ namespace ServerHandler
     {
        public static Thread ObserverWorker = null;
        public static HandlerObserver Observer;
-        public static Int32 _port { get; private set; }
+       public static Int32 _port { get; private set; }
 
         #region Do not touch
         [System.STAThreadAttribute()]
@@ -29,18 +29,15 @@ namespace ServerHandler
             String _ServerPath = GetServerExecutablePath();
 
             //Start ServerHandler
-            if (paraprocess.Program.launch(_port, _ConfigPath, _ServerPath) != true)
-            {
+            if (!paraprocess.Program.launch(_port, _ConfigPath, _ServerPath))
                 return;
-            }
 
             #region MSMQing on a new Thread
             Observer = new HandlerObserver(_port);
             ObserverWorker = new Thread(Observer.listenIncomingQueue);
             ObserverWorker.Start();
             #endregion
-
-            //Start UI only if the ServerHandler has begun
+            
             ServerHandler.App app = new ServerHandler.App();
             app.InitializeComponent();
             app.Run();
@@ -183,8 +180,6 @@ namespace ServerHandler
                 //workingQueue.Formatter = new XmlMessageFormatter(new String[] { "System.String,mscorlib" });
                 workingQueue.MessageReadPropertyFilter.Body = true;
                 workingQueue.MessageReadPropertyFilter.Label = true;
-                //workingQueue.MessageReadPropertyFilter.SentTime = true;
-                //workingQueue.MessageReadPropertyFilter.ArrivedTime = true;
 
                 // End the asynchronous receive operation.
                 receivedMessage = workingQueue.EndReceive(asyncResult.AsyncResult);
@@ -193,18 +188,6 @@ namespace ServerHandler
 
                 // Process Message
                 executeMessage(receivedMessage);
-                if (receivedMessage.Body.ToString() == "stop")
-                {
-                    paraprocess.Program.exit();
-                    //HandlerFacade.ObserverWorker.Abort();
-                    //this.ObserverWorker.Abort();
-                }
-                /*if (executeMessage(receivedMessage) == true)
-                    System.Windows.Forms.MessageBox.Show("CHEK19 + TRUEE. ");
-                else
-                    System.Windows.Forms.MessageBox.Show("CHEK19 + FALSEE. "); */
-
-                // Restart the asynchronous receive operation.
                 workingQueue.BeginReceive();
             }
             catch (Exception e)
@@ -233,12 +216,16 @@ namespace ServerHandler
             {
                 case "REQ":
                     {
-                        System.Windows.Forms.MessageBox.Show("CHEK16" + body + label);
+                        //System.Windows.Forms.MessageBox.Show("CHEK16" + body + label);
                         return handleRequest(body);
                     }
                 case "TYPE":
                     {
                         return handleType(body);
+                    }
+                case "NAME":
+                    {
+                        return handleName(body);
                     }
                 case "EXCEPTION":
                     {
@@ -305,13 +292,14 @@ namespace ServerHandler
                     }
                 case "record":
                     {
-                        if (paraprocess.Program.Alpha.IsCalibrated() != true)
+                        if (!paraprocess.Program.Alpha.IsCalibrated())
                         {
+                            System.Windows.Forms.MessageBox.Show(port.ToString()+"Not Calibrated.");
                             sendResponse(body, "ERR");
                             return false;
                         }
                         paraprocess.Program.Alpha.StartListening();
-                        if (paraprocess.Program.Alpha.IsListening() == true)
+                        if (paraprocess.Program.Alpha.IsListening())
                         {
                             sendResponse(body, "ACK");
                             return true;
@@ -324,9 +312,17 @@ namespace ServerHandler
                     }
                 case "pause":
                     {
-                        //add pause code here
-                        sendResponse(body,"ACK");
-                        return paraprocess.Program.Alpha.StopListening();
+                        if (paraprocess.Program.Alpha.pauseListening())
+                        {
+                            System.Windows.Forms.MessageBox.Show("PAUSE failed. Sending ERR. CHEK23");
+                            sendResponse(body, "ACK");
+                            return true;
+                        }
+                        else
+                        {
+                            sendResponse(body, "ERR");
+                            return true;
+                        }
                     }
                 case "stop":
                     {
@@ -339,7 +335,12 @@ namespace ServerHandler
                         sendResponse(body,"ACK");
                         return paraprocess.Program.Alpha.Deactivate();
                     }
-                default: return false;
+
+                default:
+                    {
+                        sendResponse(body, "UNKNOWN");
+                        return false;
+                    }
             }
         }
         bool handleType(string body) //whether experiment type is test or real
@@ -355,6 +356,18 @@ namespace ServerHandler
             catch(Exception e)
             {
                 System.Windows.MessageBox.Show("CHEK17" + e);
+                return false;
+            }
+        }
+        bool handleName(string body)
+        {
+            try
+            {
+                paraprocess.Program.Alpha._name = body;
+                return true;
+            }
+            catch
+            {
                 return false;
             }
         }

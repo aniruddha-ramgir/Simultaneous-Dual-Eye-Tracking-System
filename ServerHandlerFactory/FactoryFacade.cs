@@ -4,7 +4,6 @@ using System.Diagnostics;
 using System.IO;
 using System.Threading;
 using System.Messaging;
-using System.Threading.Tasks;
 using ServerHandlerFactory.Properties;
 
 namespace ServerHandlerFactory
@@ -103,7 +102,7 @@ namespace ServerHandlerFactory
             return string.Empty;
         }
 
-        public void ExitHandlers() //THIS IS JUST A TEMPORARY fix. Make Handlers close themselves.
+        public void ExitServerHandlers() //THIS IS JUST A TEMPORARY fix. Make Handlers close themselves.
         {
             Process.GetProcessById(Handler1ProcessID).Kill();
             Process.GetProcessById(Handler2ProcessID).Kill();
@@ -237,8 +236,10 @@ namespace ServerHandlerFactory
         }
         public void SyncRun()
         {
+            bool TrackersCalibrated = false;
             #region set Queue Formatter
             IncomingQueue.Formatter = new XmlMessageFormatter(new String[] { "System.String,mscorlib" });
+
             Handler1RE.Formatter = new XmlMessageFormatter(new String[] { "System.String,mscorlib" });
             Handler2RE.Formatter = new XmlMessageFormatter(new String[] { "System.String,mscorlib" });
             #endregion
@@ -256,7 +257,8 @@ namespace ServerHandlerFactory
 
             if (processHandlerReply(Handler1RE.Receive()) =="NOTIF" && processHandlerReply(Handler2RE.Receive()) == "NOTIF")
             {
-                //To optimize things, we could use a "Ready" variable here and handle "ready" request here itself.
+                TrackersCalibrated = true;
+                //This can be used to handle "ready" request in this method itself.
             }
             //Start the loop of listening and forwarding.
             while (runLoop)
@@ -267,7 +269,6 @@ namespace ServerHandlerFactory
                 //gets Message from PsychoPy
                 receivedMessage  = IncomingQueue.Receive();
                 receivedMessage.Formatter = new XmlMessageFormatter(new String[] { "System.String,mscorlib" });
-                //fwd.ResponseQueue = IncomingQueue; //This statement is WRONG because, Handlers will reply to their own Response Queues.
 
                 //Parallel Sending. Using Task here does not seem smart, but its just to be on the safe side.
                 //Task.Run(() => Handler1RQ.Send(fwd));
@@ -295,18 +296,18 @@ namespace ServerHandlerFactory
                 msg2.Formatter = new XmlMessageFormatter(new String[] { "System.String,mscorlib" });
                 #endregion
 
-                #region "BODY CORRELATION" if message from Handler1 is not correlated. 
+                #region "BODY-based CORRELATION" if message from Handler1 is not correlated. 
                 if (!msg1.Body.Equals(receivedMessage.Body)) //Checks if message from Handler1 is correlated.
                 {
-                    DisplayMessage(msg1);
+                    System.Windows.Forms.MessageBox.Show(msg1.Body.ToString());
                     System.Windows.Forms.MessageBox.Show("Not Same MSG1.");
                     break;
                 }
                 #endregion
-                #region "BODY CORRELATION" if message from Handler2 is not correlated.
+                #region "BODY-based CORRELATION" if message from Handler2 is not correlated.
                 if (!msg2.Body.Equals(receivedMessage.Body))
                 {
-                    DisplayMessage(msg2);
+                    System.Windows.Forms.MessageBox.Show(msg2.Body.ToString());
                     System.Windows.Forms.MessageBox.Show("Not Same MSG2.");
                     break;
                 }
@@ -348,18 +349,17 @@ namespace ServerHandlerFactory
                 }
                 #endregion
 
-                #region If all above are not satisfied -in order words- correlated and acknowledged
+                if (receivedMessage.Body.ToString() == "stop")
+                {
+                    runLoop = false;
+                }
+
+                #region If all above are not satisfied -in order words- message is correlated and acknowledged
                 Response.Label = "ACK";
                 Response.ResponseQueue = IncomingQueue;
                 OutgoingQueue.Send(Response);
                 #endregion
 
-                if (receivedMessage.Body.ToString() == "stop")
-                {
-                    
-                    runLoop = false;
-
-                }
             }
         }
         string getBody(Message msg)
@@ -377,20 +377,6 @@ namespace ServerHandlerFactory
             }
 
         }
-        void DisplayMessage(Message msg)
-        {
-            try
-            {
-                msg.Formatter = new XmlMessageFormatter(new String[] { "System.String,mscorlib" });
-                string label = msg.Label.ToString();
-                string body = msg.Body.ToString();
-                System.Windows.Forms.MessageBox.Show(body);
-            }
-            catch (Exception e)
-            {
-                System.Windows.Forms.MessageBox.Show("Error getting label and body-" + e + "CHEK15");
-            }
-        }
         public void publish(String msg, String label)
         {
             Message m = new Message();
@@ -398,8 +384,8 @@ namespace ServerHandlerFactory
             m.Label = label;
             multiRequestQueue.Send(m);
         }
-        string processHandlerReply(Message msg)  //Returns TRUE if the label is ACK; Else False. 
-        { //Assumes that the calling method has checked the CorrelationID
+        string processHandlerReply(Message msg)
+        { //Assumes that the calling method has checked for a correlation
             string label = null;
             string body = null;
             try
@@ -424,7 +410,6 @@ namespace ServerHandlerFactory
                     {
                         if (body == "calibrate")
                         {
-                            System.Windows.Forms.MessageBox.Show(body + "-CHEK10-" + label);
                             return "NOTIF";
                         }
                         else
@@ -432,12 +417,12 @@ namespace ServerHandlerFactory
                     }
                 case "EXCEPTION":
                     {
-                            System.Windows.Forms.MessageBox.Show(body + "-EXCPTN-" + label);
+                            System.Windows.Forms.MessageBox.Show(body + "-CHEK10-" + label);
                             return "EXCEPTION";
                     }
                 case "ERR":
                     {
-                            System.Windows.Forms.MessageBox.Show(body + "-EXCPTN-" + label);
+                            System.Windows.Forms.MessageBox.Show(body + "-CHEK10.1-" + label);
                             return "ERR";
                        //In Future, handle errors in a better way. Add --- retries; "Retrying message: count x" 
                     }

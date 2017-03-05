@@ -47,12 +47,24 @@ namespace ServerHandlerFactory
         private void Stop(object sender, RoutedEventArgs e)
         {
             //Send Highpriority "stop" message.
-            //Factory.ExitHandlers();
             this.fakeSend("stop", "REQ");
+            Factory.ExitServerHandlers();
+            /* Message msg = new Message();
+             msg = OutgoingQueue.Receive();
+             msg.Formatter = new XmlMessageFormatter(new System.String[] { "System.String,mscorlib" });
+             if(msg.Body.ToString()=="exit" && msg.Label.ToString() == "ACK")
+             {
+                 //When an acknowledgment is received, we can close the proccesses.
+                 Factory.ExitServerHandlers();
+             } */
         }
         private void send(object sender, RoutedEventArgs e)
         {
-            this.fakeSend(incoming.Text.ToString().ToLower(), "REQ");
+            if(incoming.Text.ToString().ToLower()!="name")
+             this.fakeSend(incoming.Text.ToString().ToLower(), "NAME");
+            else
+                this.fakeSend("aniruddha", "REQ");
+
         }
         public void fakeSend(string msg, string label)
         {

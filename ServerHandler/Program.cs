@@ -25,30 +25,29 @@ namespace paraprocess
             } 
             return true; //should return acknowledgement that processes have begun successfully
         }
-        public static void exit()
+        /* public static void exit()
         {
             Calibration.MainWindow.exit();
             //Environment.Exit(0);
             Process.GetCurrentProcess().Kill();
             //System.Windows.Application.Current.Shutdown(); 
-        } 
+        } */
     }
     class EyeTribeHandler : IServerHandler, IGazeListener
     {
         #region gazeData Queues
         Queue<double[]> responseData1 = null;// = new Queue<double[]>();
         Queue<String[]> responseData2 = null;// = new Queue<String[]>();
-        string[] featureNames = new string[23]
-        {
-            "port","timeStampString","rawX","rawY","smoothedX","smoothedY","isFixated","FrameState",
-            "rawLeftX","rawLeftY","smoothedLeftX","smoothedLeftY","PupilCenterLeftX","PupilCenterLeftY","PupilSizeLeft",
-            "RawRightX","rawRightY","smoothedRightX","smoothedRightY","PupilCenterRightX","PupilCenterRightY","PupilSizeRight","TimeStampLong"
-        };
+        string featureNames = "port,timeStampString,rawX,rawY,smoothedX,smoothedY,isFixated,FrameState,"+
+            "rawLeftX,rawLeftY,smoothedLeftX,smoothedLeftY,PupilCenterLeftX,PupilCenterLeftY,PupilSizeLeft,"+
+            "RawRightX,rawRightY,smoothedRightX,smoothedRightY,PupilCenterRightX,PupilCenterRightY,PupilSizeRight,"+
+            "TimeStampLong";
         #endregion
 
         #region Relevant variables
         public int _id { get; private set; }
         public Int32 _port { get; private set; }
+        public string _name { get;  set; }
         private string _cPath;
         private string _sPath;
         private string workingFilePath = null;
@@ -59,10 +58,6 @@ namespace paraprocess
         public bool isTest=true;
         #endregion
 
-        #region Stream Files
-        private FileStream _file = null;
-        private StreamWriter _fileOut = null;
-        #endregion
 
         public EyeTribeHandler(Int32 pNum, String cPath, String sPath)   //decides which device to start.Eg: device 0 or 1 or 2, etc
         {
@@ -91,6 +86,7 @@ namespace paraprocess
             System.IO.Directory.CreateDirectory(Resources.testPath);
             System.IO.Directory.CreateDirectory(Resources.mainPath);
         }
+
         public bool IsListening()
         {
             if (GazeManager.Instance.HasGazeListener(this) == true)
@@ -110,22 +106,22 @@ namespace paraprocess
         {
             return GazeManager.Instance.IsCalibrated;
         }
+
         public void StartListening()
         {
             try
             {
-                string name = Microsoft.VisualBasic.Interaction.InputBox("Please enter the name of the current experiment? This will be used to identify the current session", "Experiment Identifier");
+                //string _name = Microsoft.VisualBasic.Interaction.InputBox("Please enter the name of the current experiment? This will be used to identify the current session", "Experiment Identifier");
                 //Set path of the .csv file to be used
-                if (!isTest)
-                    workingFilePath = Resources.testPath + name + _port.ToString() + ".csv";
+                if (isTest)
+                    workingFilePath = Resources.testPath + _name + _port.ToString() + ".csv";
                 else
-                    workingFilePath = Resources.mainPath + name + _port.ToString() + ".csv";
+                    workingFilePath = Resources.mainPath + _name + _port.ToString() + ".csv";
 
-                _file = new FileStream(workingFilePath, FileMode.OpenOrCreate);
-                _fileOut = new StreamWriter(_file);
+                //If the file doesn't exist, it creates a new file 
+                //and appends "FeatureNames" string to it, as the first line
 
-                //Add feature Names to the first line of the file
-                _fileOut.WriteLine(featureNames);
+                File.AppendAllText(workingFilePath, featureNames+Environment.NewLine);
 
                 // Register this class for events
                 GazeManager.Instance.AddGazeListener(this);
@@ -136,49 +132,56 @@ namespace paraprocess
             }
 
         }
-        public bool StopListening()
-        {
-            bool result = GazeManager.Instance.RemoveGazeListener(this);
-            MessageBox.Show("SpinWait Begins.CHEK21");
-            //Waits until the data Queue is completely dequeued.
-            SpinWait.SpinUntil(() => responseData1.Count== 0 && responseData2.Count == 0);
-            //And then itt waits until streamWriter is empty
-            SpinWait.SpinUntil(() => _fileOut==null);
-            MessageBox.Show("SpinWait completed.CHEK22");
-            //Close StreamWriter
-            _fileOut.Close();
-            //Close FileStream.
-            _file.Close();
-
-            return result;
-        }
         public bool pauseListening()
         {
+            if (!IsListening())
+            {
+                return true;
+            }
             try
             {
                 bool result = GazeManager.Instance.RemoveGazeListener(this);
 
                 //Waits until the data Queue is completely dequeued.
                 SpinWait.SpinUntil(() => responseData1 == null && responseData2 == null);
-                //And then it waits until streamWriter is empty
-                SpinWait.SpinUntil(() => _fileOut == null);
-                return true;
+                return result;
             }
             catch
             {
                 return false;
             }
         }
+        public bool StopListening()
+        {
+            if (!IsListening())
+            { 
+            /*    //it might also be in the "pause" state
+                _fileOut.Close();
+                _file.Close(); */
+                return true;
+            }
+            bool result = GazeManager.Instance.RemoveGazeListener(this);
+            MessageBox.Show("SpinWait Begins.CHEK21");
+
+            //Waits until the data Queue is completely dequeued.
+            SpinWait.SpinUntil(() => responseData1.Count == 0 && responseData2.Count == 0);
+
+            MessageBox.Show("SpinWait completed.CHEK22");
+            return result;
+        }
         public bool Deactivate()
         {
-            // Disconnect client
-            GazeManager.Instance.Deactivate();
-            if (IsActivated() != false)
+            // If not activated dont deactivate.
+            if (!IsActivated())
             {
                 return true;
             }
-            return false;
+
+            GazeManager.Instance.Deactivate();
+            return IsActivated();
+
         }
+
         public void OnGazeUpdate(GazeData gazeData)
         {
             #region USELESS code - Copying from gazeData object to variables then enqueue-ing them
@@ -251,11 +254,14 @@ namespace paraprocess
         }
         void saveToFile()
         {
-                _fileOut.WriteLine
-                    (
-                        string.Join(",",responseData1.Dequeue()) + string.Join(", ", responseData2.Dequeue())
-                    );
+            File.AppendAllText(
+                workingFilePath, 
+                string.Join(",", responseData1.Dequeue()) + 
+                string.Join(", ", responseData2.Dequeue())+
+                Environment.NewLine
+                );
         }
+
         #region These methods deal with starting Servers and also implement IServerHandler
         private bool IsServerProcessRunning()
         {
