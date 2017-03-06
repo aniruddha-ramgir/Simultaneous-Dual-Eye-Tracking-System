@@ -1,20 +1,16 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace paraprocess
+﻿namespace paraprocess
 {
     interface IServerHandler //Implement this to add Servers for Trackers of different brand 
     {
         bool IsServerProcessRunning();
         void StartServerProcess();
+
         bool IsListening();
+        bool IsCalibrated();
+
         void StartListening();
+        void pauseListening();
         bool StopListening();
         bool Deactivate();
-        bool IsCalibrated();
-        //bool ServerStarted(){};
     }
 }

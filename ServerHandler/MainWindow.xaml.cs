@@ -23,26 +23,23 @@ namespace Calibration
     {
         private Screen activeScreen = Screen.PrimaryScreen;
 
-        private bool isCalibrated;
+        private bool isCalibrated = false;
 
         public MainWindow()
         {
             InitializeComponent();
             this.ContentRendered += (sender, args) => InitClient();
-            this.KeyDown += MainWindow_KeyDown;
+           // this.KeyDown += MainWindow_KeyDown;
         }
-        /*public static void exit()
-        {
-            //System.Windows.Application.Current.Shutdown();
-            System.Diagnostics.Process.GetCurrentProcess().Kill();
-        } */
         private void InitClient()
         {
             // Activate/connect client
             // GazeManager.Instance.Activate(GazeManagerCore.ApiVersion.VERSION_1_0, GazeManager.ClientMode.Push,"localhost",6555);
-            
+
             //REMOVE THIS
-            ServerHandler.HandlerFacade.Observer.sendResponse("calibrate", "NOTIF");
+            //ServerHandler.HandlerFacade.Observer.sendResponse("calibrate", "NOTIF");
+            ServerHandler.HandlerFacade.Observer.sendResponse("perfect", "CALIB");
+
             // Listen for changes in connection to server
             GazeManager.Instance.AddConnectionStateListener(this);
             port.Text = Convert.ToString(paraprocess.Program.Alpha._port);
@@ -56,7 +53,7 @@ namespace Calibration
             UpdateState();
         }
 
-        private void MainWindow_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+        /*private void MainWindow_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
         {
             if (e == null)
                 return;
@@ -69,7 +66,7 @@ namespace Calibration
                     break;
             }
         }
-
+        */
         public void OnConnectionStateChanged(bool IsActivated)
         {
             // The connection state listener detects when the connection to the EyeTribe server changes
@@ -122,9 +119,7 @@ namespace Calibration
             if (e.Result == CalibrationRunnerResult.Success)
             {
                 isCalibrated = true;
-                //Send message that it server is calibrated
-                //ServerHandler.HandlerFacade.Observer.sendResponse("calibrate", "NOTIF");
-                UpdateState();
+                UpdateState1();
             }
             else
                 MessageBox.Show(this, "Calibration failed, please try again");
@@ -152,7 +147,6 @@ namespace Calibration
                     RatingText.Text = RatingFunction(GazeManager.Instance.LastCalibrationResult);
             }
         }
-
         private string RatingFunction(CalibrationResult result)
         {
             if (result == null)
@@ -161,18 +155,81 @@ namespace Calibration
             double accuracy = result.AverageErrorDegree;
 
             if (accuracy < 0.5)
+            {
                 return "Calibration Quality: PERFECT";
-
+            }
             if (accuracy < 0.7)
+            {
                 return "Calibration Quality: GOOD";
+            }
 
             if (accuracy < 1)
+            {
                 return "Calibration Quality: MODERATE";
+            }
 
             if (accuracy < 1.5)
+            {
                 return "Calibration Quality: POOR";
-
+            }
             return "Calibration Quality: REDO";
+        }
+        private void UpdateState1()
+        {
+            // No connection
+            if (GazeManager.Instance.IsActivated == false)
+            {
+                btnCalibrate.Content = "Connect";
+                RatingText.Text = "";
+                return;
+            }
+
+            if (GazeManager.Instance.IsCalibrated == false)
+            {
+                btnCalibrate.Content = "Calibrate";
+            }
+            else
+            {
+                btnCalibrate.Content = "Recalibrate";
+
+                if (GazeManager.Instance.LastCalibrationResult != null)
+                    RatingText.Text = RatingFunction1(GazeManager.Instance.LastCalibrationResult);
+            }
+        }
+        private string RatingFunction1(CalibrationResult result)
+        {
+            if (result == null)
+                return "";
+
+            double accuracy = result.AverageErrorDegree;
+
+            if (accuracy < 0.5)
+            {
+                //Send message that it server is calibrated
+                ServerHandler.HandlerFacade.Observer.sendResponse("perfect", "CALIB");
+                return "Calibration Quality: PERFECT";
+            }
+            if (accuracy < 0.7)
+            {
+                //Send message that it server is calibrated
+                ServerHandler.HandlerFacade.Observer.sendResponse("good", "CALIB");
+                return "Calibration Quality: GOOD";
+            }
+
+            if (accuracy < 1)
+            {
+                ServerHandler.HandlerFacade.Observer.sendResponse("perfect", "CALIB");
+                return "Calibration Quality: MODERATE";
+            }
+
+            if (accuracy < 1.5)
+            {
+                ServerHandler.HandlerFacade.Observer.sendResponse("perfect", "CALIB");
+                return "Calibration Quality: POOR";
+            }
+
+           ServerHandler.HandlerFacade.Observer.sendResponse("perfect", "CALIB");
+           return  "Calibration Quality: REDO";
         }
 
         private void WindowClosed(object sender, EventArgs e)
