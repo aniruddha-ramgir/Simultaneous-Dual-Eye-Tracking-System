@@ -24,6 +24,7 @@ namespace Calibration
         private Screen activeScreen = Screen.PrimaryScreen;
 
         private bool isCalibrated = false;
+        private bool validResult = false;
 
         public MainWindow()
         {
@@ -37,8 +38,7 @@ namespace Calibration
             // GazeManager.Instance.Activate(GazeManagerCore.ApiVersion.VERSION_1_0, GazeManager.ClientMode.Push,"localhost",6555);
 
             //REMOVE THIS
-            //ServerHandler.HandlerFacade.Observer.sendResponse("calibrate", "NOTIF");
-            ServerHandler.HandlerFacade.Observer.sendResponse("perfect", "CALIB");
+            ServerHandler.HandlerFacade.Observer.sendResponse("calibrate", "NOTIF");
 
             // Listen for changes in connection to server
             GazeManager.Instance.AddConnectionStateListener(this);
@@ -114,15 +114,60 @@ namespace Calibration
                 this.Dispatcher.BeginInvoke(new MethodInvoker(() => calRunner_OnResult(sender, e)));
                 return;
             }
+            switch (e.Result)
+            {
+                case CalibrationRunnerResult.Success:
+                    {
+                        isCalibrated = true;
+                        UpdateState();
 
+                        DialogResult result1 = System.Windows.Forms.MessageBox.Show("Calibration Result:" + port.ToString(),
+                            "Click YES to accept the result. NO to discard.",
+                            MessageBoxButtons.YesNo);
+                        if (result1 == System.Windows.Forms.DialogResult.Yes && validResult)
+                        {
+                            //Send message that it server is calibrated
+                            ServerHandler.HandlerFacade.Observer.sendResponse("calibrate", "NOTIF");
+                            //ServerHandler.HandlerFacade.Observer.sendResponse(resultRating, "CALIB");
+                        }
+                        //MessageBox.Show(this, "Calibration success " + e.CalibrationResult.AverageErrorDegree);
+                        break;
+                    }
+
+                case CalibrationRunnerResult.Abort:
+                    MessageBox.Show(this, "The calibration was aborted. Reason: " + e.Message);
+                    break;
+
+                case CalibrationRunnerResult.Error:
+                    MessageBox.Show(this, "An error occured during calibration. Reason: " + e.Message);
+                    break;
+
+                case CalibrationRunnerResult.Failure:
+                    MessageBox.Show(this, "Calibration failed. Reason: " + e.Message);
+                    break;
+
+                case CalibrationRunnerResult.Unknown:
+                    MessageBox.Show(this, "Calibration exited with unknown state. Reason: " + e.Message);
+                    break;
+            }
             // Show calibration results rating
-            if (e.Result == CalibrationRunnerResult.Success)
+        /*    if (e.Result == CalibrationRunnerResult.Success)
             {
                 isCalibrated = true;
-                UpdateState1();
+                UpdateState();
+
+                DialogResult result1 = System.Windows.Forms.MessageBox.Show("Calibration Result:"+port.ToString(),
+                    "Click YES to accept the result. NO to discard.",
+                    MessageBoxButtons.YesNo);
+                if(result1 == System.Windows.Forms.DialogResult.Yes && validResult)
+                {
+                    //Send message that it server is calibrated
+                    ServerHandler.HandlerFacade.Observer.sendResponse("calibrate", "NOTIF");
+                    //ServerHandler.HandlerFacade.Observer.sendResponse(resultRating, "CALIB");
+                } 
             }
             else
-                MessageBox.Show(this, "Calibration failed, please try again");
+                MessageBox.Show(this, "Calibration failed, please try again"); */
         }
 
         private void UpdateState()
@@ -156,80 +201,29 @@ namespace Calibration
 
             if (accuracy < 0.5)
             {
+                validResult = true;
                 return "Calibration Quality: PERFECT";
             }
             if (accuracy < 0.7)
             {
+                validResult = true;
                 return "Calibration Quality: GOOD";
             }
 
             if (accuracy < 1)
             {
+                validResult = true;
                 return "Calibration Quality: MODERATE";
             }
 
             if (accuracy < 1.5)
             {
+                validResult = false;
                 return "Calibration Quality: POOR";
             }
+
+            validResult = false;
             return "Calibration Quality: REDO";
-        }
-        private void UpdateState1()
-        {
-            // No connection
-            if (GazeManager.Instance.IsActivated == false)
-            {
-                btnCalibrate.Content = "Connect";
-                RatingText.Text = "";
-                return;
-            }
-
-            if (GazeManager.Instance.IsCalibrated == false)
-            {
-                btnCalibrate.Content = "Calibrate";
-            }
-            else
-            {
-                btnCalibrate.Content = "Recalibrate";
-
-                if (GazeManager.Instance.LastCalibrationResult != null)
-                    RatingText.Text = RatingFunction1(GazeManager.Instance.LastCalibrationResult);
-            }
-        }
-        private string RatingFunction1(CalibrationResult result)
-        {
-            if (result == null)
-                return "";
-
-            double accuracy = result.AverageErrorDegree;
-
-            if (accuracy < 0.5)
-            {
-                //Send message that it server is calibrated
-                ServerHandler.HandlerFacade.Observer.sendResponse("perfect", "CALIB");
-                return "Calibration Quality: PERFECT";
-            }
-            if (accuracy < 0.7)
-            {
-                //Send message that it server is calibrated
-                ServerHandler.HandlerFacade.Observer.sendResponse("good", "CALIB");
-                return "Calibration Quality: GOOD";
-            }
-
-            if (accuracy < 1)
-            {
-                ServerHandler.HandlerFacade.Observer.sendResponse("perfect", "CALIB");
-                return "Calibration Quality: MODERATE";
-            }
-
-            if (accuracy < 1.5)
-            {
-                ServerHandler.HandlerFacade.Observer.sendResponse("perfect", "CALIB");
-                return "Calibration Quality: POOR";
-            }
-
-           ServerHandler.HandlerFacade.Observer.sendResponse("perfect", "CALIB");
-           return  "Calibration Quality: REDO";
         }
 
         private void WindowClosed(object sender, EventArgs e)

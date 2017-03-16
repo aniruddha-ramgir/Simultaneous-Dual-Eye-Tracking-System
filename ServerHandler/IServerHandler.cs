@@ -9,7 +9,7 @@
         bool IsCalibrated();
 
         void StartListening();
-        void pauseListening();
+        bool pauseListening();
         bool StopListening();
         bool Deactivate();
     }

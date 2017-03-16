@@ -79,7 +79,7 @@ namespace ServerHandler
     }
     class HandlerObserver
     {
-        public Thread ObserverWorker = null;
+        //public Thread ObserverWorker = null;
         #region Queue objects
         MessageQueue IncomingQueue = null;
         MessageQueue OutgoingQueue = null;
@@ -312,13 +312,13 @@ namespace ServerHandler
                         if (paraprocess.Program.Alpha.IsListening())
                         {
                             sendResponse(body, "ACK");
-                            File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") +"|"+ port.ToString() + " Tracker is listening to gazeData now." + Environment.NewLine);
+                            File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") +"|"+ port.ToString() + " Tracker is listening and is receiving gazeData now." + Environment.NewLine);
                             return true;
                         }
                         else
                         {
                             sendResponse(body, "ERR");
-                            File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "|"+port.ToString() + " Tracker is not listening to gazeData now." + Environment.NewLine);
+                            File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "|"+port.ToString() + " Tracker is not listening and is not receiving gazeData now." + Environment.NewLine);
                             return false;
                         }
                     }

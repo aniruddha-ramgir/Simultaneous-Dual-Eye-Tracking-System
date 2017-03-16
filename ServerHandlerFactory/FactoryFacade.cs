@@ -38,6 +38,9 @@ namespace ServerHandlerFactory
             //No need to wait here because, Handler waits internally after starting the server.
             Handler2ProcessID =  StartHandlerProcess("6556");
 
+            Process.GetProcessById(Handler1ProcessID).ProcessorAffinity = (System.IntPtr)1;
+            Process.GetProcessById(Handler2ProcessID).ProcessorAffinity = (System.IntPtr)1;
+
             Observer = new FactoryObserver("6555", "6556");
             Observer.SyncRun();
         }
@@ -263,8 +266,8 @@ namespace ServerHandlerFactory
 
             #region loop-regulating boolean variables
             bool runLoop = true;
-            bool Tracker1Calibrated = false;
-            bool Tracker2Calibrated = false;
+           // bool Tracker1Calibrated = false;
+           // bool Tracker2Calibrated = false;
             #endregion
 
             #region set Handler Queue PropertyFilters
@@ -274,87 +277,114 @@ namespace ServerHandlerFactory
             Handler2RE.MessageReadPropertyFilter.Label = true;
             #endregion
 
-            #region Calibration retry-loop
-            while (!Tracker1Calibrated && !Tracker2Calibrated) //runs until both are calibrated.
+            #region Loop that waits for "Calibrate" NOTIF-ication
+            while (true)
             {
                 File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Waiting for CalibrationRunner to send calibration results" + Environment.NewLine);
-                
+
                 #region Receiving from Handlers and setting message Formatters
                 Message msg1 = null;
                 Message msg2 = null;
-                if (!Tracker1Calibrated)
-                {
-                    msg1 = Handler1RE.Receive();
-                    msg1.Formatter = new XmlMessageFormatter(new String[] { "System.String,mscorlib" });
-                    File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "A message from Handler1 has been received." + Environment.NewLine);
 
-                }
-                if (!Tracker2Calibrated)
-                {
-                    msg2 = Handler2RE.Receive();
-                    msg2.Formatter = new XmlMessageFormatter(new String[] { "System.String,mscorlib" });
-                    File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "A message from Handler2 has been received." + Environment.NewLine);
-                }
-
+                msg1 = Handler1RE.Receive();
+                //msg1.Formatter = new XmlMessageFormatter(new String[] { "System.String,mscorlib" });
+                File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "A message from Handler1 has been received." + Environment.NewLine);
+                msg2 = Handler2RE.Receive();
+                // msg2.Formatter = new XmlMessageFormatter(new String[] { "System.String,mscorlib" });
+                File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "A message from Handler2 has been received." + Environment.NewLine);
                 #endregion
 
-                if (processHandlerReply(msg1) == "CALIB" && processHandlerReply(msg2) == "CALIB")
+                if (processHandlerReply(msg1) == "NOTIF" && processHandlerReply(msg2) == "NOTIF")
                 {
-                    File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Both Handler1 and 2 have sent 'CALIB' messages." + Environment.NewLine);
-                    #region ServerHandler1 Calibration result
-                    if (msg1.Body.ToString().ToLower() == "perfect")
-                    {
-                        File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Handler1 Calibration result was perfect." + Environment.NewLine);
-                        Tracker1Calibrated = true;
-                    }
-                    else if (msg1.Body.ToString().ToLower() == "good")
-                    {
-                        File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Handler1 Calibration result was good." + Environment.NewLine);
-                        Tracker1Calibrated = true;
-                    }
-                    else
-                    {
-                        File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Handler1 Calibration result was neither perfect nor good." + Environment.NewLine);
-                        Tracker1Calibrated = false;
-                    }
-                    #endregion
-
-                    #region ServerHandler2 Calibration result
-                    if (msg2.Body.ToString().ToLower() == "perfect")
-                    {
-                        File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Handler2 Calibration result was perfect." + Environment.NewLine);
-                        Tracker2Calibrated = true;
-                    }
-                    else if (msg2.Body.ToString().ToLower() == "good")
-                    {
-                        File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Handler2 Calibration result was good." + Environment.NewLine);
-                        Tracker2Calibrated = true;
-                    }
-                    else
-                    {
-                        File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Handler2 Calibration result was neither perfect nor good." + Environment.NewLine);
-                        Tracker1Calibrated = false;
-                    }
-                    #endregion
-
-                    #region Retry option
-                    if(Tracker1Calibrated!=true || Tracker2Calibrated != true)
-                    {
-                        System.Windows.Forms.DialogResult retryDialog = System.Windows.Forms.MessageBox.Show("Click 'Yes' to retry calibration",
-                                            "Retrying calibration?", System.Windows.Forms.MessageBoxButtons.YesNo);
-                        if (retryDialog == System.Windows.Forms.DialogResult.Yes)
-                        {
-                            File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Retrying..." + Environment.NewLine);
-                        }
-                    }
-                    
-                    #endregion
-
+                    File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Both trackers were calibrated. Proceeding." + Environment.NewLine);
+                    break;
                 }
+                    File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "unkown message received. Waiting for NOTIFs from both handlers." + Environment.NewLine);
             }
             #endregion
 
-            #region Receiving forwarding loop      
+            #region USELESS - Calibration retry-loop
+            /* 
+             while (!Tracker1Calibrated && !Tracker2Calibrated) //runs until both are calibrated.
+             {
+                 File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Waiting for CalibrationRunner to send calibration results" + Environment.NewLine);
+
+                 #region Receiving from Handlers and setting message Formatters
+                 Message msg1 = null;
+                 Message msg2 = null;
+                 if (!Tracker1Calibrated)
+                 {
+                     msg1 = Handler1RE.Receive();
+                     msg1.Formatter = new XmlMessageFormatter(new String[] { "System.String,mscorlib" });
+                     File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "A message from Handler1 has been received." + Environment.NewLine);
+
+                 }
+                 if (!Tracker2Calibrated)
+                 {
+                     msg2 = Handler2RE.Receive();
+                     msg2.Formatter = new XmlMessageFormatter(new String[] { "System.String,mscorlib" });
+                     File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "A message from Handler2 has been received." + Environment.NewLine);
+                 }
+
+                 #endregion
+
+                 if (processHandlerReply(msg1) == "CALIB" && processHandlerReply(msg2) == "CALIB")
+                 {
+                     File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Both Handler1 and 2 have sent 'CALIB' messages." + Environment.NewLine);
+                     #region ServerHandler1 Calibration result
+                     if (msg1.Body.ToString().ToLower() == "perfect")
+                     {
+                         File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Handler1 Calibration result was perfect." + Environment.NewLine);
+                         Tracker1Calibrated = true;
+                     }
+                     else if (msg1.Body.ToString().ToLower() == "good")
+                     {
+                         File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Handler1 Calibration result was good." + Environment.NewLine);
+                         Tracker1Calibrated = true;
+                     }
+                     else
+                     {
+                         File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Handler1 Calibration result was neither perfect nor good." + Environment.NewLine);
+                         Tracker1Calibrated = false;
+                     }
+                     #endregion
+
+                     #region ServerHandler2 Calibration result
+                     if (msg2.Body.ToString().ToLower() == "perfect")
+                     {
+                         File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Handler2 Calibration result was perfect." + Environment.NewLine);
+                         Tracker2Calibrated = true;
+                     }
+                     else if (msg2.Body.ToString().ToLower() == "good")
+                     {
+                         File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Handler2 Calibration result was good." + Environment.NewLine);
+                         Tracker2Calibrated = true;
+                     }
+                     else
+                     {
+                         File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Handler2 Calibration result was neither perfect nor good." + Environment.NewLine);
+                         Tracker1Calibrated = false;
+                     }
+                     #endregion
+
+                     #region Retry option
+                     if(Tracker1Calibrated!=true || Tracker2Calibrated != true)
+                     {
+                         System.Windows.Forms.DialogResult retryDialog = System.Windows.Forms.MessageBox.Show("Click 'Yes' to retry calibration",
+                                             "Retrying calibration?", System.Windows.Forms.MessageBoxButtons.YesNo);
+                         if (retryDialog == System.Windows.Forms.DialogResult.Yes)
+                         {
+                             File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Retrying..." + Environment.NewLine);
+                         }
+                     }
+
+                     #endregion
+
+                 }
+             } */
+            #endregion
+
+            #region Receiving-forwarding loop      
             while (runLoop) 
             {
                 File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") +"Starting/Restarting FactoryObserver SyncRun" + Environment.NewLine);
@@ -374,8 +404,9 @@ namespace ServerHandlerFactory
                 File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "FactoryObserver SyncRun Loop has received a message from Stimuli-module." + Environment.NewLine);
                 
                 //Parallel Sending. Using Task here does not seem smart, but its just to be on the safe side.
-               // Task.Run(() => Handler1RQ.Send(receivedMessage));
-               // Task.Run(() => Handler2RQ.Send(receivedMessage_Copy));
+                Task.Run(() => Handler1RQ.Send(receivedMessage));
+                // Task.Run(() =>
+                Handler2RQ.Send(receivedMessage_Copy);
 
                 //Task.Run does not work for some reason, so going for a "sequential Send".
                 //Handler1RQ.Send(receivedMessage);
@@ -383,7 +414,7 @@ namespace ServerHandlerFactory
 
                 //Using Parallel.Invoke to send message to two different queues at the same time.
                 //This is the best shot we have at parallel sending. 
-                Parallel.Invoke(() =>{ Handler1RQ.Send(receivedMessage); }, () => { Handler2RQ.Send(receivedMessage_Copy); });
+                //Parallel.Invoke(() =>{ Handler1RQ.Send(receivedMessage); }, () => { Handler2RQ.Send(receivedMessage_Copy); });
 
                 /*  #region set Handler Queue PropertyFilters
                   Handler1RE.MessageReadPropertyFilter.Body = true;
@@ -393,8 +424,8 @@ namespace ServerHandlerFactory
                   #endregion */
 
                 #region Receiving from Handlers and setting message Formatters
-                Message msg1 = Handler1RE.Receive();
-                Message msg2 = Handler2RE.Receive();
+                 Message msg1 = Handler1RE.Receive();
+                 Message msg2 = Handler2RE.Receive();
 
                 msg1.Formatter = new XmlMessageFormatter(new String[] { "System.String,mscorlib" });
                 msg2.Formatter = new XmlMessageFormatter(new String[] { "System.String,mscorlib" });
@@ -498,6 +529,7 @@ namespace ServerHandlerFactory
                     }
                 case "NOTIF": //only used for "calibrated" notification, which is sent by handler in the beginning.
                     {
+                        File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Received: " + body + " - NOTIF - " + label + Environment.NewLine);
                         if (body == "calibrate")
                             return "NOTIF";
                         else
@@ -534,6 +566,7 @@ namespace ServerHandlerFactory
             }
 
         } */
+
         /*  public void publish(String msg, String label)
           {
               Message m = new Message();
