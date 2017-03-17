@@ -9,7 +9,7 @@ namespace ServerHandlerFactory
     public partial class MainWindow : Window
     {
         FactoryFacade Factory;
-        string body, label;
+        string body = null, label = null;
         MessageQueue IncomingQueue = null;
         MessageQueue OutgoingQueue = null;
 
@@ -17,6 +17,7 @@ namespace ServerHandlerFactory
         {
             InitializeComponent();
         }
+
         private void Start(object sender, RoutedEventArgs e)
         {
             Factory = new FactoryFacade();
@@ -48,18 +49,8 @@ namespace ServerHandlerFactory
         private void send(object sender, RoutedEventArgs e)
         {
              this.fakeSend(body.ToLower(), label.ToUpper());
-            /*
-            Factory.ExitServerHandlers();
-            Message msg = new Message();
-            msg = OutgoingQueue.Receive();
-            msg.Formatter = new XmlMessageFormatter(new System.String[] { "System.String,mscorlib" });
-            if (msg.Body.ToString() == "exit" && msg.Label.ToString() == "ACK")
-            {
-                //When an acknowledgment is received, we can close the proccesses.
-                Factory.ExitServerHandlers();
-            }
-            */
         }
+
         public void fakeSend(string msg, string label)
         {
             Message m = new Message();
@@ -68,6 +59,7 @@ namespace ServerHandlerFactory
             //m.ResponseQueue = OutgoingQueue;
             IncomingQueue.Send(m);
         }
+
         private void incoming_TextChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
         {
             body = incoming.Text;
@@ -77,8 +69,11 @@ namespace ServerHandlerFactory
         {
             label = incoming_Copy.Text;
         }
+
         private void WindowClosed(object sender, System.EventArgs e)
         {
+            IncomingQueue.Purge();
+            OutgoingQueue.Purge();
             System.Environment.Exit(0);
         }
     }

@@ -23,7 +23,7 @@ namespace Calibration
     {
         private Screen activeScreen = Screen.PrimaryScreen;
 
-        private bool isCalibrated = false;
+        //private bool isCalibrated = false;
         private bool validResult = false;
 
         public MainWindow()
@@ -35,7 +35,7 @@ namespace Calibration
         private void InitClient()
         {
             // Activate/connect client
-            // GazeManager.Instance.Activate(GazeManagerCore.ApiVersion.VERSION_1_0, GazeManager.ClientMode.Push,"localhost",6555);
+             GazeManager.Instance.Activate(GazeManagerCore.ApiVersion.VERSION_1_0, "localhost", paraprocess.Program.Alpha._port);
 
             //REMOVE THIS
             ServerHandler.HandlerFacade.Observer.sendResponse("calibrate", "NOTIF");
@@ -52,21 +52,7 @@ namespace Calibration
 
             UpdateState();
         }
-
-        /*private void MainWindow_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
-        {
-            if (e == null)
-                return;
-
-            switch (e.Key)
-            {
-                // Start calibration on hitting "C"
-                case Key.C:
-                    ButtonCalibrateClicked(this, null);
-                    break;
-            }
-        }
-        */
+        
         public void OnConnectionStateChanged(bool IsActivated)
         {
             // The connection state listener detects when the connection to the EyeTribe server changes
@@ -118,56 +104,42 @@ namespace Calibration
             {
                 case CalibrationRunnerResult.Success:
                     {
-                        isCalibrated = true;
+                        //isCalibrated = true;
                         UpdateState();
 
-                        DialogResult result1 = System.Windows.Forms.MessageBox.Show("Calibration Result:" + port.ToString(),
-                            "Click YES to accept the result. NO to discard.",
-                            MessageBoxButtons.YesNo);
+                        DialogResult result1 = System.Windows.Forms.MessageBox.Show("Calibration Result of:" + port.ToString(),
+                                                                                    "Click YES to accept the result. NO to discard.",
+                                                                                      MessageBoxButtons.YesNo);
+
                         if (result1 == System.Windows.Forms.DialogResult.Yes && validResult)
                         {
-                            //Send message that it server is calibrated
+                            //Send message that the tracker is calibrated
                             ServerHandler.HandlerFacade.Observer.sendResponse("calibrate", "NOTIF");
-                            //ServerHandler.HandlerFacade.Observer.sendResponse(resultRating, "CALIB");
                         }
-                        //MessageBox.Show(this, "Calibration success " + e.CalibrationResult.AverageErrorDegree);
                         break;
                     }
 
-                case CalibrationRunnerResult.Abort:
-                    MessageBox.Show(this, "The calibration was aborted. Reason: " + e.Message);
-                    break;
-
-                case CalibrationRunnerResult.Error:
-                    MessageBox.Show(this, "An error occured during calibration. Reason: " + e.Message);
-                    break;
-
                 case CalibrationRunnerResult.Failure:
-                    MessageBox.Show(this, "Calibration failed. Reason: " + e.Message);
-                    break;
-
+                    {
+                        MessageBox.Show(this, "Calibration failed. Reason: " + e.Message);
+                        break;
+                    }
+                case CalibrationRunnerResult.Abort:
+                    {
+                        MessageBox.Show(this, "The calibration was aborted. Reason: " + e.Message);
+                        break;
+                    }
+                case CalibrationRunnerResult.Error:
+                    {
+                        MessageBox.Show(this, "An error occured during calibration. Reason: " + e.Message);
+                        break;
+                    }
                 case CalibrationRunnerResult.Unknown:
-                    MessageBox.Show(this, "Calibration exited with unknown state. Reason: " + e.Message);
-                    break;
+                    {
+                        MessageBox.Show(this, "Calibration exited with unknown state. Reason: " + e.Message);
+                        break;
+                    }
             }
-            // Show calibration results rating
-        /*    if (e.Result == CalibrationRunnerResult.Success)
-            {
-                isCalibrated = true;
-                UpdateState();
-
-                DialogResult result1 = System.Windows.Forms.MessageBox.Show("Calibration Result:"+port.ToString(),
-                    "Click YES to accept the result. NO to discard.",
-                    MessageBoxButtons.YesNo);
-                if(result1 == System.Windows.Forms.DialogResult.Yes && validResult)
-                {
-                    //Send message that it server is calibrated
-                    ServerHandler.HandlerFacade.Observer.sendResponse("calibrate", "NOTIF");
-                    //ServerHandler.HandlerFacade.Observer.sendResponse(resultRating, "CALIB");
-                } 
-            }
-            else
-                MessageBox.Show(this, "Calibration failed, please try again"); */
         }
 
         private void UpdateState()
@@ -192,6 +164,7 @@ namespace Calibration
                     RatingText.Text = RatingFunction(GazeManager.Instance.LastCalibrationResult);
             }
         }
+
         private string RatingFunction(CalibrationResult result)
         {
             if (result == null)

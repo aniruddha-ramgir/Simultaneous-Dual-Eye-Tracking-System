@@ -7,7 +7,8 @@ using System.Threading;
 
 namespace ServerHandler
 {
-    static class HandlerFacade //Entry point for the ServerHandler Process
+    //Entry point for the ServerHandler Process
+    static class HandlerFacade 
     {
         #region relevant objects and variables
        public static string logFilePathName = Resources.logPath+string.Format(@"{0}.txt", DateTime.Now.Ticks);
@@ -35,7 +36,7 @@ namespace ServerHandler
             //If SDET log folder doesn't exist, the below line creates it.
             System.IO.Directory.CreateDirectory(Resources.logPath);
 
-            File.AppendAllText(logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "This is the log file for the Tracker associated with the port number:" + _port.ToString()+ Environment.NewLine);
+            File.AppendAllText(logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "This is the log file for the Tracker/Handler associated with the port number:" + _port.ToString()+ Environment.NewLine);
             File.AppendAllText(logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Inside HandlerFacade Main()" + Environment.NewLine);
             
             //Start ServerHandler
@@ -77,9 +78,9 @@ namespace ServerHandler
         }
         
     }
+
     class HandlerObserver
     {
-        //public Thread ObserverWorker = null;
         #region Queue objects
         MessageQueue IncomingQueue = null;
         MessageQueue OutgoingQueue = null;
@@ -256,6 +257,7 @@ namespace ServerHandler
         }
 
         #region These methods execute "body" part of the message
+
         #region These are practically useless
         public bool handleAcknowledgement(string body)
         {
@@ -289,25 +291,19 @@ namespace ServerHandler
                         if (!paraprocess.Program.Alpha.IsCalibrated())
                         {
                             sendResponse(body, "ERR");
-                            File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Tracker is not calibrated. Sending ERR message back to the Factory" + Environment.NewLine);
+                            File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Tracker is not calibrated. Sending error (ERR) message back to the Factory" + Environment.NewLine);
                             return true;
                         }
                         if (paraprocess.Program.Alpha.preListening())
                         {
                             sendResponse(body, "ACK");
-                            File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Tracker is calibrated. Response File was created. Sending acknowledgement back to the Factory." + Environment.NewLine);
+                            File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Tracker is calibrated. Response File was created. Sending acknowledgement (ACK) back to the Factory." + Environment.NewLine);
                             return true;
                         }
                         return false;
                     }
                 case "record":
                     {
-                       /* if (!paraprocess.Program.Alpha.IsCalibrated())
-                        {
-                            sendResponse(body, "ERR");
-                            File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, port.ToString() + " Tracker is not calibrated. Sending ERR. Calibrate before recording." + Environment.NewLine);
-                            return false;
-                        } */
                         paraprocess.Program.Alpha.StartListening();
                         if (paraprocess.Program.Alpha.IsListening())
                         {
@@ -415,9 +411,9 @@ namespace ServerHandler
         }
         #endregion 
 
-        //create message object for a string and sends it.
-        public void sendResponse(string body, string label) 
+        public void sendResponse(string body, string label)
         {
+            //create message object for a string and sends it.
             Response = new Message();
             Response.Body = body;
             Response.Label = label;

@@ -11,35 +11,39 @@ namespace ServerHandlerFactory
 {
     class FactoryFacade
     {
-        public static string logFilePathName = Resources.logPath + string.Format(@"{0}.txt", DateTime.Now.Ticks);
         Thread FacadeThread;
         public FactoryObserver Observer = null;
+
+        #region relevant variables
+        public static string logFilePathName = Resources.logPath + string.Format(@"{0}.txt", DateTime.Now.Ticks);
         int  Handler1ProcessID,Handler2ProcessID;
         public bool FactoryStarted { get; private set; }
+        #endregion
 
         public FactoryFacade()
         {
             //If SDET log folder doesn't exist, the below line creates it.
-            System.IO.Directory.CreateDirectory(Resources.logPath);
+            Directory.CreateDirectory(Resources.logPath);
 
             File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Inside FactoryFacade Constructor. Creating new Thread for FactoryObserver." + Environment.NewLine);
 
-            //This is to avoid UI from blocking. Unnecessary 
+            //This is to avoid UI from blocking. 
             FacadeThread = new Thread(this.Run);
             FacadeThread.Start();
         }
 
         void Run()
-        { //use for loop and the below logic to make it work it multiple trackers
-
+        {
+            //use "for" loop and the below logic to make it work it multiple trackers
             if (IsHandlerProcessRunning() != true) //Extend this to work with more than 2 Handlers. 
                 Handler1ProcessID= StartHandlerProcess("6555");
 
             //No need to wait here because, Handler waits internally after starting the server.
             Handler2ProcessID =  StartHandlerProcess("6556");
 
-            Process.GetProcessById(Handler1ProcessID).ProcessorAffinity = (System.IntPtr)1;
-            Process.GetProcessById(Handler2ProcessID).ProcessorAffinity = (System.IntPtr)1;
+            //Process Affinity
+            Process.GetProcessById(Handler1ProcessID).ProcessorAffinity = (IntPtr)1;
+            Process.GetProcessById(Handler2ProcessID).ProcessorAffinity = (IntPtr)1;
 
             Observer = new FactoryObserver("6555", "6556");
             Observer.SyncRun();
@@ -118,6 +122,7 @@ namespace ServerHandlerFactory
         }
         #endregion
     }
+
     class FactoryObserver
     {
         #region Declaration statements for Message and MessageQueue Object
@@ -299,7 +304,7 @@ namespace ServerHandlerFactory
                     File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Both trackers were calibrated. Proceeding." + Environment.NewLine);
                     break;
                 }
-                    File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "unkown message received. Waiting for NOTIFs from both handlers." + Environment.NewLine);
+                    File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Unkown message received. Waiting for NOTIFs from both handlers." + Environment.NewLine);
             }
             #endregion
 
@@ -404,9 +409,9 @@ namespace ServerHandlerFactory
                 File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "FactoryObserver SyncRun Loop has received a message from Stimuli-module." + Environment.NewLine);
                 
                 //Parallel Sending. Using Task here does not seem smart, but its just to be on the safe side.
-                Task.Run(() => Handler1RQ.Send(receivedMessage));
+                //Task.Run(() => Handler1RQ.Send(receivedMessage));
                 // Task.Run(() =>
-                Handler2RQ.Send(receivedMessage_Copy);
+                //Handler2RQ.Send(receivedMessage_Copy);
 
                 //Task.Run does not work for some reason, so going for a "sequential Send".
                 //Handler1RQ.Send(receivedMessage);
@@ -414,7 +419,7 @@ namespace ServerHandlerFactory
 
                 //Using Parallel.Invoke to send message to two different queues at the same time.
                 //This is the best shot we have at parallel sending. 
-                //Parallel.Invoke(() =>{ Handler1RQ.Send(receivedMessage); }, () => { Handler2RQ.Send(receivedMessage_Copy); });
+                Parallel.Invoke(() =>{ Handler1RQ.Send(receivedMessage); }, () => { Handler2RQ.Send(receivedMessage_Copy); });
 
                 /*  #region set Handler Queue PropertyFilters
                   Handler1RE.MessageReadPropertyFilter.Body = true;
@@ -439,7 +444,7 @@ namespace ServerHandlerFactory
                 }
                 #endregion
                 #region "BODY-based CORRELATION" if message from Handler2 is not correlated.
-                if (!msg2.Body.Equals(receivedMessage.Body))
+                if (!msg2.Body.Equals(receivedMessage_Copy.Body))
                 {
                     File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Message received from Handler 2 does not correlate with the message received from the Stimuli-Module" + Environment.NewLine);
                     break;
@@ -522,11 +527,6 @@ namespace ServerHandlerFactory
                         File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Received: " + body + " - ACK - " + label + Environment.NewLine);
                         return "ACK";
                     }
-                case "CALIB": //successful events will fall in this category. This is the expected case.
-                    {
-                        File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Received: " + body + " - CALIB - " + label + Environment.NewLine);
-                        return "CALIB";
-                    }
                 case "NOTIF": //only used for "calibrated" notification, which is sent by handler in the beginning.
                     {
                         File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Received: " + body + " - NOTIF - " + label + Environment.NewLine);
@@ -534,6 +534,11 @@ namespace ServerHandlerFactory
                             return "NOTIF";
                         else
                             return "ERR";
+                    }
+                case "CALIB": //USELESS
+                    {
+                        File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Received: " + body + " - CALIB - " + label + Environment.NewLine);
+                        return "CALIB";
                     }
                 case "EXCEPTION":
                     {

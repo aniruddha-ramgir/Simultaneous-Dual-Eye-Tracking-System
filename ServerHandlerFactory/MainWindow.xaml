@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:ServerHandlerFactory"
         mc:Ignorable="d"
-        Title="Simultaneous Dual Eye-Tracking System" Height="339.149" Width="530.126">
+        Title="Simultaneous Dual Eye-Tracking System" Height="383.254" Width="583.356">
     <Grid Margin="32,26,24,19">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="69*"/>
@@ -16,9 +16,10 @@
             <ComboBoxItem IsSelected="True">2</ComboBoxItem>
             <ComboBoxItem>3</ComboBoxItem>
         </ComboBox>  -->
-        <TextBox Margin="10,10,242,187" Name="incoming"  RenderTransformOrigin="0.75,-0.556" Grid.ColumnSpan="2" TextChanged="incoming_TextChanged" ></TextBox>
-        <Button Margin="10,96,10,101" Click="send" Grid.ColumnSpan="2">Send</Button>
-        <Button Margin="10,187,10,10" Click="Start" Grid.ColumnSpan="2">Start</Button>
-        <TextBox Margin="180,10,10,187" x:Name="incoming_Copy"  RenderTransformOrigin="0.75,-0.556"  Grid.Column="1" TextChanged="incoming_Copy_TextChanged" />
+        <TextBox Margin="10,10,275,230" Name="incoming"  RenderTransformOrigin="0.75,-0.556" Grid.ColumnSpan="2" TextChanged="incoming_TextChanged" ></TextBox>
+        <Button Margin="10,96,10,144" Click="send" Grid.ColumnSpan="2">Send</Button>
+        <Button Margin="10,168,10,76" Click="Start" Grid.ColumnSpan="2">Start</Button>
+        <TextBox Margin="199,10,10,230" x:Name="incoming_Copy"  RenderTransformOrigin="0.75,-0.556"  Grid.Column="1" TextChanged="incoming_Copy_TextChanged" />
+        <Button Margin="10,236,10,8" Click="WindowClosed" Grid.ColumnSpan="2" Content="EXIT"/>
     </Grid>
 </Window>
