@@ -286,6 +286,21 @@ namespace ServerHandler
         {
             switch (body)
             {
+                case "connect":
+                    {
+                        if (paraprocess.Program.Alpha.Connect())
+                        {
+                            sendResponse(body, "ACK");
+                            File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Connected to the socket/Tracker. Sending ACK message back to the Factory" + Environment.NewLine);
+                            return true;
+                        }
+                        else
+                        {
+                            sendResponse(body, "ERR");
+                            File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Not connected to the socket/Tracker. Sending error (ERR) message back to the Factory" + Environment.NewLine);
+                            return false;
+                        }
+                    }
                 case "ready":
                     {
                         if (!paraprocess.Program.Alpha.IsCalibrated())
@@ -418,7 +433,7 @@ namespace ServerHandler
             Response.Body = body;
             Response.Label = label;
             OutgoingQueue.Send(Response);
-            File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Sending message to Factory Facade" + Environment.NewLine);
+            File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Sending message -"+body+"- to Factory Facade" + Environment.NewLine);
         }
     }
 }

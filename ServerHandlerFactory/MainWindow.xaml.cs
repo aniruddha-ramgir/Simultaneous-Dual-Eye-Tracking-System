@@ -70,11 +70,10 @@ namespace ServerHandlerFactory
             label = incoming_Copy.Text;
         }
 
-        private void WindowClosed(object sender, System.EventArgs e)
+        private void Button_Click(object sender, RoutedEventArgs e)
         {
-            IncomingQueue.Purge();
-            OutgoingQueue.Purge();
             System.Environment.Exit(0);
+
         }
     }
 }

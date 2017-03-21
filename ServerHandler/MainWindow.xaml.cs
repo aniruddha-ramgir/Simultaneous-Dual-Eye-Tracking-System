@@ -32,6 +32,7 @@ namespace Calibration
             this.ContentRendered += (sender, args) => InitClient();
            // this.KeyDown += MainWindow_KeyDown;
         }
+
         private void InitClient()
         {
             // Activate/connect client
@@ -43,6 +44,7 @@ namespace Calibration
             // Listen for changes in connection to server
             GazeManager.Instance.AddConnectionStateListener(this);
             port.Text = Convert.ToString(paraprocess.Program.Alpha._port);
+
             // Fetch current status
             OnConnectionStateChanged(GazeManager.Instance.IsActivated);
 
@@ -107,13 +109,14 @@ namespace Calibration
                         //isCalibrated = true;
                         UpdateState();
 
-                        DialogResult result1 = System.Windows.Forms.MessageBox.Show("Calibration Result of:" + port.ToString(),
-                                                                                    "Click YES to accept the result. NO to discard.",
-                                                                                      MessageBoxButtons.YesNo);
+                        DialogResult result1 = System.Windows.Forms.MessageBox.Show(
+                                 "Calibration Result of:" + port.ToString()+" was "+ RatingFunction(GazeManager.Instance.LastCalibrationResult),
+                                 "Click YES to accept the result. NO to discard.",
+                                  MessageBoxButtons.YesNo);
 
                         if (result1 == System.Windows.Forms.DialogResult.Yes && validResult)
                         {
-                            //Send message that the tracker is calibrated
+                            //Send message that the tracker is calibrated    
                             ServerHandler.HandlerFacade.Observer.sendResponse("calibrate", "NOTIF");
                         }
                         break;
@@ -175,28 +178,29 @@ namespace Calibration
             if (accuracy < 0.5)
             {
                 validResult = true;
-                return "Calibration Quality: PERFECT";
+                return "PERFECT";
             }
             if (accuracy < 0.7)
             {
                 validResult = true;
-                return "Calibration Quality: GOOD";
+                return "GOOD";
+                //return "Calibration Quality: GOOD";
             }
 
             if (accuracy < 1)
             {
                 validResult = true;
-                return "Calibration Quality: MODERATE";
+                return "MODERATE";
             }
 
             if (accuracy < 1.5)
             {
                 validResult = false;
-                return "Calibration Quality: POOR";
+                return "POOR";
             }
 
             validResult = false;
-            return "Calibration Quality: REDO";
+            return "REDO";
         }
 
         private void WindowClosed(object sender, EventArgs e)
@@ -204,9 +208,15 @@ namespace Calibration
             GazeManager.Instance.Deactivate();
             Environment.Exit(0);
         }
+
         private void TextBox_TextChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
         {
             //DO NOTHING.
+        }
+
+        private void stop_Click(object sender, RoutedEventArgs e) //Is this necessary, now that we can deactivate after accepting calibration results?
+        {
+            GazeManager.Instance.Deactivate();
         }
     }
 }

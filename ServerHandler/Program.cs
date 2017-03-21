@@ -347,7 +347,8 @@ namespace paraprocess
         const string breakLine = "break,break,break,break,break,break,break,break,break,break,break,break,break,break,break,break,break,break,break,break,break,break,break";
 
         const string REQ_HEATBEAT = "{\"category\":\"heartbeat\",\"request\":null}";
-        string REQ_PUSH = "{\"values\":{\"push\":true,\"version\":1},\"category\":\"tracker\",\"request\":\"set\"}";
+        const string REQ_PUSH = "{\"values\":{\"push\":true,\"version\":1},\"category\":\"tracker\",\"request\":\"set\"}";
+        string response = string.Empty;
         #endregion
 
         #region Relevant variables
@@ -357,17 +358,20 @@ namespace paraprocess
         private string _cPath;
         private string _sPath;
         private string workingFilePath = null;
+        int exTimeLong = -1;
 
         private TcpClient socket;
         private Thread incomingThread;
-        StreamReader reader = null;
+        //StreamReader Globalreader = null;
         private System.Timers.Timer timerHeartbeat;
         #endregion
 
         #region Boolean variables
         public bool ServerStarted { get; private set; }
         public bool isTest = true;
-        public bool isRunning = false;
+        bool KeepRunning = false;
+        bool NoStop = false;
+        bool isConnected = false;
         #endregion
 
         public EyeTribeNonAPIHandler(Int32 pNum, String cPath, String sPath)   //decides which device to start.Eg: device 0 or 1 or 2, etc
@@ -379,7 +383,7 @@ namespace paraprocess
             StartServerProcess();
 
             // Connect to tracker
-            Connect();
+            //Connect();
 
             //If SDET test and main folders don't exist, the below line creates them.
             System.IO.Directory.CreateDirectory(Resources.testPath);
@@ -388,7 +392,7 @@ namespace paraprocess
 
         public bool IsListening()
         {
-            return isRunning;
+            return KeepRunning;
         } //CHANGE. 
         public bool IsActivated()
         {
@@ -398,24 +402,27 @@ namespace paraprocess
         {
             try
             {
+
                 string REQ_isCalibrated = " {\"category\": \"tracker\",\"request\" : \"get\",\"values\": [ \"push\", \"iscalibrated\" ]}";
                 Send(REQ_isCalibrated);
                 StreamReader reader = new StreamReader(socket.GetStream());
+           
                 string response = reader.ReadLine();
                 JObject jObject = JObject.Parse(response);
-                reader.Close();
-                if ("true".Equals((string)jObject.SelectToken("values.iscalibrated")))
+                if ("True".Equals((string)jObject.SelectToken("values.iscalibrated")))
                 {
                     //System.Windows.Forms.MessageBox.Show((string)jObject.SelectToken("values.iscalibrated"));
                     File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Tracker calibrated" + Environment.NewLine);
                     return true;
                 }
-                else{
+                else
+                {
                     //remove below line
                     System.Windows.Forms.MessageBox.Show((string)jObject.SelectToken("values.iscalibrated"));
                     File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Tracker not calibrated" + Environment.NewLine);
-                    return false;
+                    return true; //CHANGE TO FALSE.
                 }
+                
             }
             catch (Exception e)
             {
@@ -428,6 +435,7 @@ namespace paraprocess
         {
             try
             {
+
                 File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "preListening() called." + Environment.NewLine);
                 
                 //Set path of the .csv file to be used
@@ -437,14 +445,16 @@ namespace paraprocess
                     workingFilePath = Resources.mainPath + _sessionName + _port.ToString() + ".csv";
 
                 //If the file doesn't exist, it creates a new file and appends "FeatureNames" string to it, as the first line
-
                 File.AppendAllText(workingFilePath, featureNames + Environment.NewLine);
                 File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + " .csv file created." + Environment.NewLine);
-                isRunning = true;
 
+                KeepRunning = true;
+                NoStop = true;
+               
                 // Initiliaze a seperate thread to parse incoming data
                 incomingThread = new Thread(ListenerLoop);
                 incomingThread.Priority = ThreadPriority.AboveNormal;
+
                 return true;
             }
             catch (Exception e)
@@ -459,10 +469,7 @@ namespace paraprocess
             try
             {
                 // Send the obligatory connect request message
-                Send(REQ_PUSH);
-
-                reader = new StreamReader(socket.GetStream());
-
+                SendStart(REQ_PUSH);
                 //Start the thread that was intiatilised in PreListening()
                 incomingThread.Start();
 
@@ -488,8 +495,10 @@ namespace paraprocess
         {
             if (!IsListening())
                 return true;
+
             try
             {
+
                 timerHeartbeat.Stop();
               //  string REQ_PULL = "{\"values\":{\"push\":false,\"version\":1},\"category\":\"tracker\",\"request\":\"set\"}";
                // Send(REQ_PULL);
@@ -498,10 +507,10 @@ namespace paraprocess
                 //SpinWait.SpinUntil(() => socket.Available == 0);
                 //File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Socket Empty. Waiting for StreamReader to get emptied. " + Environment.NewLine);
 
-                SpinWait.SpinUntil(() => reader.EndOfStream);
+               // SpinWait.SpinUntil(() => Globalreader.EndOfStream);
                 File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Socket Empty. StreamReader empty. " + Environment.NewLine);
 
-                isRunning = false;
+                KeepRunning = false;
                 File.AppendAllText(workingFilePath, breakLine + Environment.NewLine);
                 return true;
             }
@@ -516,14 +525,13 @@ namespace paraprocess
         {
             try
             {
-
                 timerHeartbeat = new System.Timers.Timer(250);
                 timerHeartbeat.Elapsed += delegate { Send(REQ_HEATBEAT); };
                 timerHeartbeat.Start();
 
              //   string REQ_CONNECT = "{\"values\":{\"push\":true,\"version\":1},\"category\":\"tracker\",\"request\":\"set\"}";
               //  Send(REQ_CONNECT);
-                isRunning = true;
+                KeepRunning = true;
                 File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Listener resumed." + Environment.NewLine);
 
             }
@@ -539,21 +547,22 @@ namespace paraprocess
             try
             {
                 timerHeartbeat.Stop();
-                //string REQ_PULL = "{\"values\":{\"push\":false,\"version\":1},\"category\":\"tracker\",\"request\":\"set\"}";
-                //Send(REQ_PULL);               
+                //Send(REQ_PULL);  
+                NoStop = false;     
+                KeepRunning = false;
                 File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Waiting for socket to get emptied. " + Environment.NewLine);
 
                 //SpinWait.SpinUntil(() => socket.Available == 0);
                 //File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Socket Empty. Waiting for StreamReader to get emptied. " + Environment.NewLine);
 
-                SpinWait.SpinUntil(() => reader.EndOfStream);
+                //SpinWait.SpinUntil(() => Globalreader.EndOfStream);
                 File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Socket Empty. StreamReader empty. " + Environment.NewLine);
-
-                isRunning = false;
-                reader.Close();
+                
+                //Globalreader.Close();
                 socket.Close();
-                incomingThread.Abort();
+                //incomingThread.Abort();
                 File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Stopped. " + Environment.NewLine);
+                isConnected = false;
                 return true;
             }
             catch (Exception e)
@@ -570,7 +579,7 @@ namespace paraprocess
                 File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Listener deactivated." + Environment.NewLine);
                 return true;
             }
-            isRunning = false;
+            KeepRunning = false;
             incomingThread.Abort();
             File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Listener deactivated." + Environment.NewLine);
             return IsActivated();
@@ -579,9 +588,12 @@ namespace paraprocess
 
         public bool Connect()
         {
+            if (isConnected)
+                return true;
             try
             {
                 socket = new TcpClient("localhost", _port);
+                isConnected = true;
                 return true;
             }
             catch (Exception ex)
@@ -599,181 +611,195 @@ namespace paraprocess
                 writer.Flush();
             }
         }
-
+        private void SendStart(string message)
+        {
+            if (socket != null && socket.Connected)
+            {
+                StreamWriter writer = new StreamWriter(socket.GetStream());
+                //EDIT THIS
+                SpinWait.SpinUntil(()=> (DateTime.Now.Ticks / TimeSpan.TicksPerMillisecond)%16 == 0);
+                writer.WriteLine(message);
+                writer.Flush();
+                return;
+            }
+        }
         private void ListenerLoop()
         {
-            int exTimeLong = -1;
-            while (isRunning)
+            using (StreamReader reader = new StreamReader(socket.GetStream()))
             {
-                string response = string.Empty;
-                try
+                while (KeepRunning && NoStop)
                 {
-                    response = reader.ReadLine();
-                    JObject jObject = JObject.Parse(response);
-
-                    switch ((string)jObject["category"])
+                    try
                     {
-                        case "tracker":
-                            {
-                                JToken values = jObject.GetValue("values");
-                                if (values != null) //is this necessary?
+                        response = reader.ReadLine();
+                        JObject jObject = JObject.Parse(response);
+
+                        switch ((string)jObject["category"])
+                        {
+                            case "tracker":
                                 {
-                                    #region JObject variables
-                                    //JObject generalFrameData = jObject.SelectToken("values.frame");
-                                    JObject generalFrameData = JObject.Parse(values.SelectToken("frame").ToString());
-                                    //Get LeftEye Data
-                                    JObject leftEyeData = JObject.Parse(generalFrameData.SelectToken("lefteye").ToString());
-                                    //Get RightEye Data
-                                    JObject rightEyeData = JObject.Parse(generalFrameData.SelectToken("righteye").ToString());
-                                    /*
-                                    JToken jGeneralFrame = values.SelectToken("frame"); //to get avg and raw 
-                                    Token jLeftFrame = generalFrameValues.SelectToken("lefteye"); //to get avg and raw of LEFT EYE
-                                    JToken jRightFrame = generalFrameValues.SelectToken("righteye"); //to get avg and raw of RIGH EYE
-                                    */
-                                    #endregion
-
-                                    #region General Data
-
-                                    /* string timeStampString = generalFrameValues.Property("timestamp").Value.ToString();  
-                                     int timeLong = (int)generalFrameValues.Property("time").Value;  
-                                     string isFixated = (string)generalFrameValues.Property("fix").Value;
-                                     int state = (int)generalFrameValues.Property("state").Value; */
-                                    string timeStampString = (string)generalFrameData.SelectToken("timestamp");
-                                    int timeLong = (int)generalFrameData.SelectToken("time"); //int
-                                    string isFixated = (string)generalFrameData.SelectToken("fix"); //bool
-                                    string state = (string)generalFrameData.SelectToken("state"); //int
-
-                                    #region Raw Coordinates
-                                    //JObject rawGaze = JObject.Parse(generalFrameValues.SelectToken("raw").ToString());
-                                    //double rawGazeX = (double)rawGaze.Property("x").Value;
-                                    //double rawGazeY = (double)rawGaze.Property("y").Value;
-                                    string rawGazeX = (string)generalFrameData.SelectToken("raw.x");
-                                    string rawGazeY = (string)generalFrameData.SelectToken("raw.y");
-                                    #endregion
-
-                                    #region Smoothed Coordinates
-                                    // JObject smoothedGaze = JObject.Parse(generalFrameValues.SelectToken("avg").ToString());
-                                    string smoothedGazeX = (string)generalFrameData.SelectToken("avg.x");
-                                    string smoothedGazeY = (string)generalFrameData.SelectToken("avg.y");
-                                    #endregion
-
-                                    #endregion
-
-                                    #region LeftEye
-
-                                    #region Raw Coordinates //double
-                                    /* JObject rawGazeLeft = JObject.Parse(jLeftFrame.SelectToken("raw").ToString());
-                                     double rawGazeLeftX = (double)rawGazeLeft.Property("x").Value;
-                                     double rawGazeLeftY = (double)rawGazeLeft.Property("y").Value; */
-                                    string rawGazeLeftX = (string)leftEyeData.SelectToken("raw.x");
-                                    string rawGazeLeftY = (string)leftEyeData.SelectToken("raw.y");
-                                    #endregion
-
-                                    #region Smoothed Coordinates //double
-                                    /*  JObject smoothedGazeLeft = JObject.Parse(jLeftFrame.SelectToken("avg").ToString());
-                                      double smoothedGazeLeftX = (double)smoothedGazeLeft.Property("x").Value;
-                                      double smoothedGazeLeftY = (double)smoothedGazeLeft.Property("y").Value; */
-                                    string smoothedGazeLeftX = (string)leftEyeData.SelectToken("avg.x");
-                                    string smoothedGazeLeftY = (string)leftEyeData.SelectToken("avg.y");
-                                    #endregion
-
-                                    #region Pupil Data //double
-                                    string pupilSizeLeft = (string)leftEyeData.SelectToken("psize");
-
-                                    /*JObject pupilCenterLeft = JObject.Parse(jLeftFrame.SelectToken("pcenter").ToString());
-                                    double pupilCenterLeftX = (double)pupilCenterLeft.Property("x").Value;
-                                    double pupilCenterLeftY = (double)pupilCenterLeft.Property("y").Value; */
-                                    string pupilCenterLeftX = (string)leftEyeData.SelectToken("pcenter.x");
-                                    string pupilCenterLeftY = (string)leftEyeData.SelectToken("pcenter.y");
-                                    #endregion
-
-                                    #endregion
-
-                                    #region RightEye
-
-                                    #region Raw Coordinates //double
-                                    string rawGazeRightX = (string)rightEyeData.SelectToken("raw.x");
-                                    string rawGazeRightY = (string)rightEyeData.SelectToken("raw.y");
-                                    #endregion
-
-                                    #region Smoothed Coordinates //double
-                                    string smoothedGazeRightX = (string)rightEyeData.SelectToken("avg.x");
-                                    string smoothedGazeRightY = (string)rightEyeData.SelectToken("avg.y");
-                                    #endregion
-
-                                    #region Pupil Data //double
-                                    string pupilSizeRight = (string)rightEyeData.SelectToken("psize");
-
-                                    string pupilCenterRightX = (string)rightEyeData.SelectToken("pcenter.x");
-                                    string pupilCenterRightY = (string)rightEyeData.SelectToken("pcenter.y");
-                                    #endregion
-
-
-                                    #endregion
-
-                                    #region Marking lapses
-                                    double lapse;
-                                    if (exTimeLong != -1 && (lapse = timeLong - exTimeLong) > 18) //if there is a lapse.
+                                    JToken values = jObject.GetValue("values");
+                                    if (values != null) //is this necessary?
                                     {
-                                        lapse = lapse / 17;
-                                        for (int i = 0; i < lapse; i++) //prints "lapse" depending on the no.of data-points that have been skipped.
+                                        #region JObject variables
+                                        //JObject generalFrameData = jObject.SelectToken("values.frame");
+                                        JObject generalFrameData = JObject.Parse(values.SelectToken("frame").ToString());
+                                        //Get LeftEye Data
+                                        JObject leftEyeData = JObject.Parse(generalFrameData.SelectToken("lefteye").ToString());
+                                        //Get RightEye Data
+                                        JObject rightEyeData = JObject.Parse(generalFrameData.SelectToken("righteye").ToString());
+                                        /*
+                                        JToken jGeneralFrame = values.SelectToken("frame"); //to get avg and raw 
+                                        Token jLeftFrame = generalFrameValues.SelectToken("lefteye"); //to get avg and raw of LEFT EYE
+                                        JToken jRightFrame = generalFrameValues.SelectToken("righteye"); //to get avg and raw of RIGH EYE
+                                        */
+                                        #endregion
+
+                                        #region General Data
+
+                                        /* string timeStampString = generalFrameValues.Property("timestamp").Value.ToString();  
+                                         int timeLong = (int)generalFrameValues.Property("time").Value;  
+                                         string isFixated = (string)generalFrameValues.Property("fix").Value;
+                                         int state = (int)generalFrameValues.Property("state").Value; */
+                                        string timeStampString = (string)generalFrameData.SelectToken("timestamp");
+                                        int timeLong = (int)generalFrameData.SelectToken("time"); //int
+                                        string isFixated = (string)generalFrameData.SelectToken("fix"); //bool
+                                        string state = (string)generalFrameData.SelectToken("state"); //int
+
+                                        #region Raw Coordinates
+                                        //JObject rawGaze = JObject.Parse(generalFrameValues.SelectToken("raw").ToString());
+                                        //double rawGazeX = (double)rawGaze.Property("x").Value;
+                                        //double rawGazeY = (double)rawGaze.Property("y").Value;
+                                        string rawGazeX = (string)generalFrameData.SelectToken("raw.x");
+                                        string rawGazeY = (string)generalFrameData.SelectToken("raw.y");
+                                        #endregion
+
+                                        #region Smoothed Coordinates
+                                        // JObject smoothedGaze = JObject.Parse(generalFrameValues.SelectToken("avg").ToString());
+                                        string smoothedGazeX = (string)generalFrameData.SelectToken("avg.x");
+                                        string smoothedGazeY = (string)generalFrameData.SelectToken("avg.y");
+                                        #endregion
+
+                                        #endregion
+
+                                        #region LeftEye
+
+                                        #region Raw Coordinates //double
+                                        /* JObject rawGazeLeft = JObject.Parse(jLeftFrame.SelectToken("raw").ToString());
+                                         double rawGazeLeftX = (double)rawGazeLeft.Property("x").Value;
+                                         double rawGazeLeftY = (double)rawGazeLeft.Property("y").Value; */
+                                        string rawGazeLeftX = (string)leftEyeData.SelectToken("raw.x");
+                                        string rawGazeLeftY = (string)leftEyeData.SelectToken("raw.y");
+                                        #endregion
+
+                                        #region Smoothed Coordinates //double
+                                        /*  JObject smoothedGazeLeft = JObject.Parse(jLeftFrame.SelectToken("avg").ToString());
+                                          double smoothedGazeLeftX = (double)smoothedGazeLeft.Property("x").Value;
+                                          double smoothedGazeLeftY = (double)smoothedGazeLeft.Property("y").Value; */
+                                        string smoothedGazeLeftX = (string)leftEyeData.SelectToken("avg.x");
+                                        string smoothedGazeLeftY = (string)leftEyeData.SelectToken("avg.y");
+                                        #endregion
+
+                                        #region Pupil Data //double
+                                        string pupilSizeLeft = (string)leftEyeData.SelectToken("psize");
+
+                                        /*JObject pupilCenterLeft = JObject.Parse(jLeftFrame.SelectToken("pcenter").ToString());
+                                        double pupilCenterLeftX = (double)pupilCenterLeft.Property("x").Value;
+                                        double pupilCenterLeftY = (double)pupilCenterLeft.Property("y").Value; */
+                                        string pupilCenterLeftX = (string)leftEyeData.SelectToken("pcenter.x");
+                                        string pupilCenterLeftY = (string)leftEyeData.SelectToken("pcenter.y");
+                                        #endregion
+
+                                        #endregion
+
+                                        #region RightEye
+
+                                        #region Raw Coordinates //double
+                                        string rawGazeRightX = (string)rightEyeData.SelectToken("raw.x");
+                                        string rawGazeRightY = (string)rightEyeData.SelectToken("raw.y");
+                                        #endregion
+
+                                        #region Smoothed Coordinates //double
+                                        string smoothedGazeRightX = (string)rightEyeData.SelectToken("avg.x");
+                                        string smoothedGazeRightY = (string)rightEyeData.SelectToken("avg.y");
+                                        #endregion
+
+                                        #region Pupil Data //double
+                                        string pupilSizeRight = (string)rightEyeData.SelectToken("psize");
+
+                                        string pupilCenterRightX = (string)rightEyeData.SelectToken("pcenter.x");
+                                        string pupilCenterRightY = (string)rightEyeData.SelectToken("pcenter.y");
+                                        #endregion
+
+
+                                        #endregion
+
+                                        #region Marking lapses
+                                        double lapse;
+                                        if (exTimeLong != -1 && (lapse = timeLong - exTimeLong) > 18) //if there is a lapse.
                                         {
-                                            File.AppendAllText(
-                                                           workingFilePath,
-                                                           _port.ToString() + "," +
-                                                           "lapse" + "," + "lapse" + "," + "lapse" + "," + "lapse" + "," + "lapse" + "," + "lapse" + "," + "lapse" + "," +
-                                                           "lapse" + "," + "lapse" + "," + "lapse" + "," + "lapse" + "," + "lapse" + "," + "lapse" + "," + "lapse" + "," +
-                                                           "lapse" + "," + "lapse" + "," + "lapse" + "," + "lapse" + "," + "lapse" + "," + "lapse" + "," + "lapse" + "," +
-                                                           "lapse" + Environment.NewLine);
+                                            lapse = lapse / 17;
+                                            for (int i = 0; i < lapse; i++) //prints "lapse" depending on the no.of data-points that have been skipped.
+                                            {
+                                                File.AppendAllText(
+                                                               workingFilePath,
+                                                               _port.ToString() + "," +
+                                                               "lapse" + "," + "lapse" + "," + "lapse" + "," + "lapse" + "," + "lapse" + "," + "lapse" + "," + "lapse" + "," +
+                                                               "lapse" + "," + "lapse" + "," + "lapse" + "," + "lapse" + "," + "lapse" + "," + "lapse" + "," + "lapse" + "," +
+                                                               "lapse" + "," + "lapse" + "," + "lapse" + "," + "lapse" + "," + "lapse" + "," + "lapse" + "," + "lapse" + "," +
+                                                               "lapse" + Environment.NewLine);
+                                            }
+
                                         }
+                                        #endregion
 
+                                        #region print gazedata to file
+                                        File.AppendAllText(
+                                                        workingFilePath,
+                                                        _port.ToString() + "," +
+                                                        timeStampString + "," + isFixated + "," + state + "," + rawGazeX + "," + rawGazeY + "," + smoothedGazeX + "," + smoothedGazeY + "," +
+                                                        rawGazeLeftX + "," + rawGazeLeftY + "," + smoothedGazeLeftX + "," + smoothedGazeLeftY + "," + pupilCenterLeftX + "," + pupilCenterLeftY + "," + pupilSizeLeft + "," +
+                                                        rawGazeRightX + "," + rawGazeRightY + "," + smoothedGazeRightX + "," + smoothedGazeRightY + "," + pupilCenterRightX + "," + pupilCenterRightY + "," + pupilSizeRight + "," +
+                                                        timeLong.ToString() + Environment.NewLine);
+                                        exTimeLong = timeLong;
+                                        #endregion
                                     }
-                                    #endregion
+                                    else
+                                    {
+                                        #region print null to file if values = null.
+                                        /*   File.AppendAllText(
+                                                                 workingFilePath,
+                                                                 _port.ToString() + "," +
+                                                                 jObject.ToString() +
+                                                                 Environment.NewLine);
+                                       */
+                                        File.AppendAllText(
+                                                             workingFilePath,
+                                                             _port.ToString() + "," +
+                                                             "null" + "," + "null" + "," + "null" + "," + "null" + "," + "null" + "," + "null" + "," + "null" + "," +
+                                                             "null" + "," + "null" + "," + "null" + "," + "null" + "," + "null" + "," + "null" + "," + "null" + "," +
+                                                             "null" + "," + "null" + "," + "null" + "," + "null" + "," + "null" + "," + "null" + "," + "null" + "," +
+                                                             "null" + Environment.NewLine);
 
-                                    #region print gazedata to file
-                                    File.AppendAllText(
-                                                    workingFilePath,
-                                                    _port.ToString() + "," +
-                                                    timeStampString + "," + isFixated + "," + state + "," + rawGazeX + "," + rawGazeY + "," + smoothedGazeX + "," + smoothedGazeY + "," +
-                                                    rawGazeLeftX + "," + rawGazeLeftY + "," + smoothedGazeLeftX + "," + smoothedGazeLeftY + "," + pupilCenterLeftX + "," + pupilCenterLeftY + "," + pupilSizeLeft + "," +
-                                                    rawGazeRightX + "," + rawGazeRightY + "," + smoothedGazeRightX + "," + smoothedGazeRightY + "," + pupilCenterRightX + "," + pupilCenterRightY + "," + pupilSizeRight + "," +
-                                                    timeLong.ToString() + Environment.NewLine);
-                                    exTimeLong = timeLong;
-                                    #endregion
+                                        #endregion
+                                    }
+                                    continue;
                                 }
-                                else
+                            case "heartbeat":
                                 {
-                                    #region print null to file if values = null.
-                                    File.AppendAllText(
-                                                          workingFilePath,
-                                                          _port.ToString() + "," +
-                                                          values.ToString() +
-                                                          Environment.NewLine);
-                                /*
-                                     File.AppendAllText(
-                                                          workingFilePath,
-                                                          _port.ToString() + "," +
-                                                          "null" + "," + "null" + "," + "null" + "," + "null" + "," + "null" + "," + "null" + "," + "null" + "," +
-                                                          "null" + "," + "null" + "," + "null" + "," + "null" + "," + "null" + "," + "null" + "," + "null" + "," +
-                                                          "null" + "," + "null" + "," + "null" + "," + "null" + "," + "null" + "," + "null" + "," + "null" + "," +
-                                                          "null" + Environment.NewLine);
-                                    */
-                                    #endregion
+                                    continue;
                                 }
-                                continue;
-                            }
-                        case "heartbeat":
-                            {
-                                continue;
-                            }
+                        }
                     }
+                    catch (Exception e)
+                    {
+                        File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Exception occured while reading response: " + e + Environment.NewLine);
+                    }
+                    response = string.Empty;
+                    SpinWait.SpinUntil(() => KeepRunning = true); //Waits until listening has been resumed.
                 }
-                catch (Exception e)
-                {
-                    File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Exception occured while reading response: " + e + Environment.NewLine);
-                }
-                SpinWait.SpinUntil(() => isRunning = true); //Waits until listening has been resumed.
             }
+                
         }
 
         #region These methods deal with starting Servers and also implement IServerHandler
@@ -801,7 +827,7 @@ namespace paraprocess
         public void StartServerProcess()
         {
             ProcessStartInfo psi = new ProcessStartInfo();
-            psi.WindowStyle = ProcessWindowStyle.Normal; //set it to hidden 
+            psi.WindowStyle = ProcessWindowStyle.Minimized; //set it to hidden 
             psi.FileName = _sPath;
             psi.Arguments = _cPath;
             if (psi.FileName == string.Empty || File.Exists(psi.FileName) == false)

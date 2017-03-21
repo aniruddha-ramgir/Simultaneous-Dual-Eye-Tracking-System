@@ -308,106 +308,116 @@ namespace ServerHandlerFactory
             }
             #endregion
 
-            #region USELESS - Calibration retry-loop
-            /* 
-             while (!Tracker1Calibrated && !Tracker2Calibrated) //runs until both are calibrated.
-             {
-                 File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Waiting for CalibrationRunner to send calibration results" + Environment.NewLine);
+            #region Loop that sends Connect request to handlers.
+            do
+            {
+                Message connectMsg = new Message("connect");
+                connectMsg.Label = "REQ";
+                Handler1RQ.Send(connectMsg);
+                Handler2RQ.Send(connectMsg);
 
-                 #region Receiving from Handlers and setting message Formatters
-                 Message msg1 = null;
-                 Message msg2 = null;
-                 if (!Tracker1Calibrated)
-                 {
-                     msg1 = Handler1RE.Receive();
-                     msg1.Formatter = new XmlMessageFormatter(new String[] { "System.String,mscorlib" });
-                     File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "A message from Handler1 has been received." + Environment.NewLine);
+                bool Handler1ERR = false;
+                bool Handler2ERR = false;
+                bool notCorr = false;
 
-                 }
-                 if (!Tracker2Calibrated)
-                 {
-                     msg2 = Handler2RE.Receive();
-                     msg2.Formatter = new XmlMessageFormatter(new String[] { "System.String,mscorlib" });
-                     File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "A message from Handler2 has been received." + Environment.NewLine);
-                 }
+                File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "connect-loop: Connecting..." + Environment.NewLine);
 
-                 #endregion
+                #region Receiving from Handlers and setting message Formatters
+                Message msg1 = Handler1RE.Receive();
+                Message msg2 = Handler2RE.Receive();
 
-                 if (processHandlerReply(msg1) == "CALIB" && processHandlerReply(msg2) == "CALIB")
-                 {
-                     File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Both Handler1 and 2 have sent 'CALIB' messages." + Environment.NewLine);
-                     #region ServerHandler1 Calibration result
-                     if (msg1.Body.ToString().ToLower() == "perfect")
-                     {
-                         File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Handler1 Calibration result was perfect." + Environment.NewLine);
-                         Tracker1Calibrated = true;
-                     }
-                     else if (msg1.Body.ToString().ToLower() == "good")
-                     {
-                         File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Handler1 Calibration result was good." + Environment.NewLine);
-                         Tracker1Calibrated = true;
-                     }
-                     else
-                     {
-                         File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Handler1 Calibration result was neither perfect nor good." + Environment.NewLine);
-                         Tracker1Calibrated = false;
-                     }
-                     #endregion
+                msg1.Formatter = new XmlMessageFormatter(new String[] { "System.String,mscorlib" });
+                msg2.Formatter = new XmlMessageFormatter(new String[] { "System.String,mscorlib" });
+                #endregion
 
-                     #region ServerHandler2 Calibration result
-                     if (msg2.Body.ToString().ToLower() == "perfect")
-                     {
-                         File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Handler2 Calibration result was perfect." + Environment.NewLine);
-                         Tracker2Calibrated = true;
-                     }
-                     else if (msg2.Body.ToString().ToLower() == "good")
-                     {
-                         File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Handler2 Calibration result was good." + Environment.NewLine);
-                         Tracker2Calibrated = true;
-                     }
-                     else
-                     {
-                         File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Handler2 Calibration result was neither perfect nor good." + Environment.NewLine);
-                         Tracker1Calibrated = false;
-                     }
-                     #endregion
+                #region "BODY-based CORRELATION" if message from Handler1 is not correlated. 
+                if (!msg1.Body.Equals(connectMsg.Body)) //Checks if message from Handler1 is correlated.
+                {
+                    File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Message received from Handler 1 does not correlate with the message received from the Stimuli-Module. Body= " + msg1.Body.ToString() + Environment.NewLine);
+                    Handler1ERR = true;
+                    notCorr = true;
+                }
+                #endregion
+                #region "BODY-based CORRELATION" if message from Handler2 is not correlated.
+                if (!msg2.Body.Equals(connectMsg.Body))
+                {
+                    File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Message received from Handler 2 does not correlate with the message received from the Stimuli-Module Body= " + msg2.Body.ToString() + Environment.NewLine);
+                    Handler2ERR = true;
+                    notCorr = true;
+                }
+                #endregion
 
-                     #region Retry option
-                     if(Tracker1Calibrated!=true || Tracker2Calibrated != true)
-                     {
-                         System.Windows.Forms.DialogResult retryDialog = System.Windows.Forms.MessageBox.Show("Click 'Yes' to retry calibration",
-                                             "Retrying calibration?", System.Windows.Forms.MessageBoxButtons.YesNo);
-                         if (retryDialog == System.Windows.Forms.DialogResult.Yes)
-                         {
-                             File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Retrying..." + Environment.NewLine);
-                         }
-                     }
+                File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Messages received from both Handler 1 & 2 correlate with the message received from the Stimuli-Module" + Environment.NewLine);
 
-                     #endregion
+                #region Handler1 has not received Acknowledgement
+                if (processHandlerReply(msg1) != "ACK") //Deals with Handler1's the received Acknowledgements or lack thereof
+                {
+                    if (processHandlerReply(msg1) == "ERR")
+                    {
+                        File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Received an 'ERR' from Handler1" + Environment.NewLine);
+                        Handler1ERR = true;
+                    }
+                    else //necessary?
+                    {
+                        File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Received an 'UNKNOWN' from Handler1" + Environment.NewLine);
+                        Handler1ERR = true;
+                    }
+                }
+                #endregion
+                #region Handler2 has not received Acknowledgement
+                if (processHandlerReply(msg2) != "ACK") //Deals with Handler2's the received Acknowledgements or lack thereof
+                {
+                    if (processHandlerReply(msg2) == "ERR")
+                    {
+                        File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Received an 'ERR' from Handler2" + Environment.NewLine);
+                        Handler2ERR = true;
+                    }
+                    else //is this necessary?
+                    {
+                        File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Received an 'UNKNOWN' from Handler2" + Environment.NewLine);
+                        Handler2ERR = true;
+                    }
+                }
+                #endregion
 
-                 }
-             } */
+                #region Handle unexpected issues here.
+                if (Handler1ERR || Handler2ERR)
+                {
+                    if (notCorr)
+                        File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Check Handler logs to identify correlation issues." + Environment.NewLine);
+                    File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Sending a ERR-message. Check Handler logs." + Environment.NewLine);
+                    continue;
+                }
+                #endregion
+                File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "FactoryObserver connect-Loop ending." + Environment.NewLine);
+                break;
+            } while (true);
+
             #endregion
 
             #region Receiving-forwarding loop      
-            while (runLoop) 
+            do
             {
-                File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") +"Starting/Restarting FactoryObserver SyncRun" + Environment.NewLine);
+                bool Handler1ERR = false;
+                bool Handler2ERR = false;
+                bool notCorr = false;
+
+                File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "At the beginning of the FactoryObserver SyncRun loop." + Environment.NewLine);
                 receivedMessage = new Message();
                 Response = new Message();
 
                 //gets Message from Stimuli-Module
-                receivedMessage  = IncomingQueue.Receive();
+                receivedMessage = IncomingQueue.Receive();
                 receivedMessage.Formatter = new XmlMessageFormatter(new String[] { "System.String,mscorlib" });
 
                 //We cannot send one object to two different tasks at the same. Hence, a copy.
-                Message receivedMessage_Copy = new Message(); 
+                Message receivedMessage_Copy = new Message();
                 receivedMessage_Copy.Formatter = new XmlMessageFormatter(new String[] { "System.String,mscorlib" });
                 receivedMessage_Copy.Body = receivedMessage.Body.ToString();
                 receivedMessage_Copy.Label = receivedMessage.Label.ToString();
 
                 File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "FactoryObserver SyncRun Loop has received a message from Stimuli-module." + Environment.NewLine);
-                
+
                 //Parallel Sending. Using Task here does not seem smart, but its just to be on the safe side.
                 //Task.Run(() => Handler1RQ.Send(receivedMessage));
                 // Task.Run(() =>
@@ -419,7 +429,7 @@ namespace ServerHandlerFactory
 
                 //Using Parallel.Invoke to send message to two different queues at the same time.
                 //This is the best shot we have at parallel sending. 
-                Parallel.Invoke(() =>{ Handler1RQ.Send(receivedMessage); }, () => { Handler2RQ.Send(receivedMessage_Copy); });
+                Parallel.Invoke(() => { Handler1RQ.Send(receivedMessage); }, () => { Handler2RQ.Send(receivedMessage_Copy); });
 
                 /*  #region set Handler Queue PropertyFilters
                   Handler1RE.MessageReadPropertyFilter.Body = true;
@@ -429,8 +439,8 @@ namespace ServerHandlerFactory
                   #endregion */
 
                 #region Receiving from Handlers and setting message Formatters
-                 Message msg1 = Handler1RE.Receive();
-                 Message msg2 = Handler2RE.Receive();
+                Message msg1 = Handler1RE.Receive();
+                Message msg2 = Handler2RE.Receive();
 
                 msg1.Formatter = new XmlMessageFormatter(new String[] { "System.String,mscorlib" });
                 msg2.Formatter = new XmlMessageFormatter(new String[] { "System.String,mscorlib" });
@@ -439,15 +449,17 @@ namespace ServerHandlerFactory
                 #region "BODY-based CORRELATION" if message from Handler1 is not correlated. 
                 if (!msg1.Body.Equals(receivedMessage.Body)) //Checks if message from Handler1 is correlated.
                 {
-                    File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Message received from Handler 1 does not correlate with the message received from the Stimuli-Module" + Environment.NewLine);
-                    break;
+                    File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Message received from Handler 1 does not correlate with the message received from the Stimuli-Module. Body= " + msg1.Body.ToString() + Environment.NewLine);
+                    Handler1ERR = true;
+                    notCorr = true;
                 }
                 #endregion
                 #region "BODY-based CORRELATION" if message from Handler2 is not correlated.
                 if (!msg2.Body.Equals(receivedMessage_Copy.Body))
                 {
-                    File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Message received from Handler 2 does not correlate with the message received from the Stimuli-Module" + Environment.NewLine);
-                    break;
+                    File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Message received from Handler 2 does not correlate with the message received from the Stimuli-Module Body= " + msg2.Body.ToString() + Environment.NewLine);
+                    Handler2ERR = true;
+                    notCorr = true;
                 }
                 #endregion
 
@@ -458,16 +470,20 @@ namespace ServerHandlerFactory
                 {
                     if (processHandlerReply(msg1) == "ERR")
                     {
-                        Response.Body = "Handler1";
-                        Response.Label = "ERR";
+                        File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Received an 'ERR' from Handler1" + Environment.NewLine);
+                        Handler1ERR = true;
+                        //Response.Body = "Handler1";
+                        //Response.Label = "ERR";
                     }
-                    else
+                    else //necessary?
                     {
-                        Response.Body = "Handler1";
-                        Response.Label = "UNKNOWN";
+                        File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Received an 'UNKNOWN' from Handler1" + Environment.NewLine);
+                        Handler1ERR = true;
+                        //Response.Body = "Handler1";
+                        //Response.Label = "UNKNOWN";
                     }
-                    Response.ResponseQueue = IncomingQueue;
-                    OutgoingQueue.Send(Response);
+                    //Response.ResponseQueue = IncomingQueue;
+                    //OutgoingQueue.Send(Response);
                 }
                 #endregion
                 #region Handler2 has not received Acknowledgement
@@ -475,38 +491,59 @@ namespace ServerHandlerFactory
                 {
                     if (processHandlerReply(msg2) == "ERR")
                     {
-                        Response.Body = "Handler2";
-                        Response.Label = "ERR";
+                        File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Received an 'ERR' from Handler2" + Environment.NewLine);
+                        Handler2ERR = true;
+                        //Response.Body = "Handler2";
+                        //Response.Label = "ERR";
                     }
-                    else
+                    else //is this necessary?
                     {
-                        Response.Body = "Handler2";
-                        Response.Label = "UNKNOWN";
+                        File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Received an 'UNKNOWN' from Handler2" + Environment.NewLine);
+                        Handler2ERR = true;
+                        //Response.Body = "Handler2";
+                        //Response.Label = "UNKNOWN";
                     }
-                    Response.ResponseQueue = IncomingQueue;
-                    OutgoingQueue.Send(Response);
+                    //Response.ResponseQueue = IncomingQueue;
+                    //OutgoingQueue.Send(Response);
+                    //continue;
                 }
                 #endregion
 
-                if (receivedMessage.Body.ToString() == "stop")
+                #region Handle unexpected issues here.
+                if (Handler1ERR || Handler2ERR)
+                {
+                    if (notCorr)
+                        File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Check Handler logs to identify correlation issues." + Environment.NewLine);
+                    File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Sending a ERR-message. Check Handler logs." + Environment.NewLine);
+                    Response.Body = receivedMessage.Body;
+                    Response.Label = "ERR";
+                    Response.ResponseQueue = IncomingQueue;
+                    OutgoingQueue.Send(Response);
+                    continue;
+                }
+                #endregion
+
+                if (receivedMessage.Body.ToString().ToLower() == "stop")
                 {
                     File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Received a STOP-message. SyncRun will not loop from here on." + Environment.NewLine);
                     runLoop = false;
                 }
 
                 #region If all above are not satisfied -in order words- message is correlated and acknowledged
+                Response.Body = receivedMessage.Body;
                 Response.Label = "ACK";
                 Response.ResponseQueue = IncomingQueue;
                 OutgoingQueue.Send(Response);
                 #endregion
 
                 File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "FactoryObserver SyncRun Loop ending." + Environment.NewLine);
-            }
+            } while (runLoop);
             #endregion
         }
 
         string processHandlerReply(Message msg)
-        { //Assumes that the calling method has checked for a correlation
+        { 
+            //This function sssumes that the calling method has checked for a correlation
             string label = null;
             string body = null;
             try

@@ -20,6 +20,6 @@
         <Button Margin="10,96,10,144" Click="send" Grid.ColumnSpan="2">Send</Button>
         <Button Margin="10,168,10,76" Click="Start" Grid.ColumnSpan="2">Start</Button>
         <TextBox Margin="199,10,10,230" x:Name="incoming_Copy"  RenderTransformOrigin="0.75,-0.556"  Grid.Column="1" TextChanged="incoming_Copy_TextChanged" />
-        <Button Margin="10,236,10,8" Click="WindowClosed" Grid.ColumnSpan="2" Content="EXIT"/>
+        <Button Margin="10,236,10,8" Grid.ColumnSpan="2" Content="EXIT" Click="Button_Click"/>
     </Grid>
 </Window>

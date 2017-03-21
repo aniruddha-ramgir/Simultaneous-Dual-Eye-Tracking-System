@@ -19,8 +19,9 @@
         <Grid x:Name="TrackingStatusGrid" Width="300" Height="250" Margin="4" HorizontalAlignment="Center" VerticalAlignment="Top" />
 
         <Grid x:Name="ButtonControls" VerticalAlignment="Bottom">
-            <Button x:Name="btnCalibrate" Content="" Click="ButtonCalibrateClicked" Height="35" Margin="147,0,10,10" VerticalAlignment="Bottom" Background="#FF575757" Foreground="White" Focusable="False" />
-            <TextBox Margin="10,0,160,10" Name="port"  IsReadOnly="True" Text="Port Number"></TextBox>       
+            <Button x:Name="btnCalibrate" Content="" Click="ButtonCalibrateClicked" Height="35" Margin="78,0,79,10" VerticalAlignment="Bottom" Background="#FF575757" Foreground="White" Focusable="False" />
+            <Button x:Name="stop" Content="stop" Click="stop_Click" Height="35" Margin="228,0,10,10" VerticalAlignment="Bottom" Background="#FF575757" Foreground="White" Focusable="False" />
+            <TextBox Margin="10,0,229,10" Foreground="White" Background="#FF575757" Name="port" IsReadOnly="True" Text="Port Number"></TextBox>       
         </Grid>
 
         <TextBlock x:Name="RatingText" HorizontalAlignment="Center" Text="" VerticalAlignment="Top" Foreground="White" FontSize="15" TextAlignment="Right" TextWrapping="Wrap" FontWeight="Bold" />
