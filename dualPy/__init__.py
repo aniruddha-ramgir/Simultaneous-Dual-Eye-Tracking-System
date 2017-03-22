@@ -1,1 +1,1 @@
-from sdet import StimuliObsever
+from sdet import StimuliObserver

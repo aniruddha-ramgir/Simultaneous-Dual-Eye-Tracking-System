@@ -406,9 +406,9 @@ namespace paraprocess
                 string REQ_isCalibrated = " {\"category\": \"tracker\",\"request\" : \"get\",\"values\": [ \"push\", \"iscalibrated\" ]}";
                 Send(REQ_isCalibrated);
                 StreamReader reader = new StreamReader(socket.GetStream());
-           
                 string response = reader.ReadLine();
                 JObject jObject = JObject.Parse(response);
+
                 if ("True".Equals((string)jObject.SelectToken("values.iscalibrated")))
                 {
                     //System.Windows.Forms.MessageBox.Show((string)jObject.SelectToken("values.iscalibrated"));
@@ -616,11 +616,11 @@ namespace paraprocess
             if (socket != null && socket.Connected)
             {
                 StreamWriter writer = new StreamWriter(socket.GetStream());
+
                 //EDIT THIS
-                SpinWait.SpinUntil(()=> (DateTime.Now.Ticks / TimeSpan.TicksPerMillisecond)%16 == 0);
+                SpinWait.SpinUntil(()=> (DateTime.Now.Ticks / TimeSpan.TicksPerMillisecond)%15 == 0);
                 writer.WriteLine(message);
                 writer.Flush();
-                return;
             }
         }
         private void ListenerLoop()

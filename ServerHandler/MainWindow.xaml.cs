@@ -38,8 +38,6 @@ namespace Calibration
             // Activate/connect client
              GazeManager.Instance.Activate(GazeManagerCore.ApiVersion.VERSION_1_0, "localhost", paraprocess.Program.Alpha._port);
 
-            //REMOVE THIS
-            ServerHandler.HandlerFacade.Observer.sendResponse("calibrate", "NOTIF");
 
             // Listen for changes in connection to server
             GazeManager.Instance.AddConnectionStateListener(this);
@@ -53,8 +51,12 @@ namespace Calibration
             TrackingStatusGrid.Children.Add(new TrackBoxStatus());
 
             UpdateState();
+
+            //REMOVE THIS
+            GazeManager.Instance.Deactivate();
+            ServerHandler.HandlerFacade.Observer.sendResponse("calibrate", "NOTIF");
         }
-        
+
         public void OnConnectionStateChanged(bool IsActivated)
         {
             // The connection state listener detects when the connection to the EyeTribe server changes
@@ -110,7 +112,7 @@ namespace Calibration
                         UpdateState();
 
                         DialogResult result1 = System.Windows.Forms.MessageBox.Show(
-                                 "Calibration Result of:" + port.ToString()+" was "+ RatingFunction(GazeManager.Instance.LastCalibrationResult),
+                                 "Calibration Result of:" + port.Text.ToString()+" was "+ RatingFunction(GazeManager.Instance.LastCalibrationResult),
                                  "Click YES to accept the result. NO to discard.",
                                   MessageBoxButtons.YesNo);
 
