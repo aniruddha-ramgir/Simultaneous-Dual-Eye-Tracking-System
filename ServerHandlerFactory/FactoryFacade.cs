@@ -4,8 +4,9 @@ using System.Diagnostics;
 using System.IO;
 using System.Threading;
 using System.Messaging;
-using ServerHandlerFactory.Properties;
 using System.Threading.Tasks;
+using System.Globalization;
+using System.Configuration;
 
 namespace ServerHandlerFactory
 {
@@ -15,7 +16,7 @@ namespace ServerHandlerFactory
         public FactoryObserver Observer = null;
 
         #region relevant variables
-        public static string logFilePathName = Resources.logPath + string.Format(@"{0}.txt", DateTime.Now.Ticks);
+        public static string logFilePathName = ConfigurationManager.AppSettings["logPath"] + string.Format(CultureInfo.InvariantCulture,@"{0}.txt", DateTime.Now.Ticks);
         int  Handler1ProcessID,Handler2ProcessID;
         public bool FactoryStarted { get; private set; }
         #endregion
@@ -23,9 +24,9 @@ namespace ServerHandlerFactory
         public FactoryFacade()
         {
             //If SDET log folder doesn't exist, the below line creates it.
-            Directory.CreateDirectory(Resources.logPath);
-
-            File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Inside FactoryFacade Constructor. Creating new Thread for FactoryObserver." + Environment.NewLine);
+            Directory.CreateDirectory(ConfigurationManager.AppSettings["logPath"]);
+            //System.Windows.Forms.MessageBox.Show(ConfigurationManager.AppSettings["logPath"] + ConfigurationManager.AppSettings["HandlerPath"] + ConfigurationManager.AppSettings["incomingQueueName"] + ConfigurationManager.AppSettings["outgoingQueueName"]);
+            File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff", CultureInfo.InvariantCulture) + "Inside FactoryFacade Constructor. Creating new Thread for FactoryObserver." + Environment.NewLine);
 
             //This is to avoid UI from blocking. 
             FacadeThread = new Thread(this.Run);
@@ -57,7 +58,8 @@ namespace ServerHandlerFactory
             psi.FileName = GetHandlerExecutablePath();
             psi.Arguments = port;
             Process processServer = null;
-            if (psi.FileName == string.Empty || File.Exists(psi.FileName) == false)
+           
+            if (string.IsNullOrEmpty(psi.FileName) || File.Exists(psi.FileName) == false)
             {
                 FactoryStarted = false;
                 return 0;
@@ -71,7 +73,7 @@ namespace ServerHandlerFactory
             }
             catch (Exception e)
             {
-                File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "An Exception has occured @StartHandlerProcess: " + e + Environment.NewLine);
+                File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff", CultureInfo.InvariantCulture) + "An Exception has occured @StartHandlerProcess: " + e + Environment.NewLine);
                 FactoryStarted = false;
             }
             Thread.Sleep(1000); // wait for it to spin up
@@ -84,13 +86,13 @@ namespace ServerHandlerFactory
             {
                 foreach (Process p in Process.GetProcesses())
                 {
-                    if (p.ProcessName.ToLower() == "ServerHandler")
+                    if (p.ProcessName.ToLowerInvariant() == "ServerHandler")
                         return true;
                 }
             }
             catch (Exception e)
             {
-                File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "An Exception has occured @IsHandlerProcessRunning: " + e + Environment.NewLine);
+                File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff", CultureInfo.InvariantCulture) + "An Exception has occured @IsHandlerProcessRunning: " + e + Environment.NewLine);
                 return false;
             }
             return false;
@@ -99,7 +101,7 @@ namespace ServerHandlerFactory
         private string GetHandlerExecutablePath()
         {
             // ServerHandler default path from resource string           
-            string def = Resources.HandlerPath;
+            string def = ConfigurationManager.AppSettings["HandlerPath"];
             if (File.Exists(def))
                 return def;
 
@@ -155,31 +157,31 @@ namespace ServerHandlerFactory
 
         public FactoryObserver(string port1,string port2)
         {
-            File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Inside FactoryObserver Constructor.Creating/assigning message Queues for FactoryObserver." + Environment.NewLine);
+            File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff", CultureInfo.InvariantCulture) + "Inside FactoryObserver Constructor.Creating/assigning message Queues for FactoryObserver." + Environment.NewLine);
             try
             {
                 //SET ACCESS MODES. 
                 #region Incoming Queue
-                if (MessageQueue.Exists(@".\Private$\" + Resources.incomingQueueName))
+                if (MessageQueue.Exists(@".\Private$\" + ConfigurationManager.AppSettings["incomingQueueName"]))
                 {
-                    IncomingQueue = new MessageQueue(@".\Private$\" + Resources.incomingQueueName);
+                    IncomingQueue = new MessageQueue(@".\Private$\" + ConfigurationManager.AppSettings["incomingQueueName"]);
                 }
                 else
                 {
-                    MessageQueue.Create(@".\Private$\" + Resources.incomingQueueName);
-                    IncomingQueue = new MessageQueue(@".\Private$\" + Resources.incomingQueueName);
+                    MessageQueue.Create(@".\Private$\" + ConfigurationManager.AppSettings["incomingQueueName"]);
+                    IncomingQueue = new MessageQueue(@".\Private$\" + ConfigurationManager.AppSettings["incomingQueueName"]);
                 }
                 #endregion
 
                 #region Outgoing Queue
-                if (MessageQueue.Exists(@".\Private$\" + Resources.outgoingQueueName))
+                if (MessageQueue.Exists(@".\Private$\" + ConfigurationManager.AppSettings["outgoingQueueName"]))
                 {
-                    OutgoingQueue = new MessageQueue(@".\Private$\" + Resources.outgoingQueueName);
+                    OutgoingQueue = new MessageQueue(@".\Private$\" + ConfigurationManager.AppSettings["outgoingQueueName"]);
                 }
                 else
                 {
-                    MessageQueue.Create(@".\Private$\" + Resources.outgoingQueueName);
-                    OutgoingQueue = new MessageQueue(@".\Private$\" + Resources.outgoingQueueName);
+                    MessageQueue.Create(@".\Private$\" + ConfigurationManager.AppSettings["outgoingQueueName"]);
+                    OutgoingQueue = new MessageQueue(@".\Private$\" + ConfigurationManager.AppSettings["outgoingQueueName"]);
                 }
                 #endregion
 
@@ -248,13 +250,13 @@ namespace ServerHandlerFactory
             }
             catch (Exception e)
             {
-                File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "An Exception has occured @FactoryObserver Constructor: " + e + Environment.NewLine);
+                File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff", CultureInfo.InvariantCulture) + "An Exception has occured @FactoryObserver Constructor: " + e + Environment.NewLine);
             }
         }
 
         public void SyncRun()
         {
-            File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "FactoryObserver SyncRun begins." + Environment.NewLine);
+            File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff", CultureInfo.InvariantCulture) + "FactoryObserver SyncRun begins." + Environment.NewLine);
 
             #region set Queue Formatter
             IncomingQueue.Formatter = new XmlMessageFormatter(new String[] { "System.String,mscorlib" });
@@ -285,7 +287,7 @@ namespace ServerHandlerFactory
             #region Loop that waits for "Calibrate" NOTIF-ication
             while (true)
             {
-                File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Waiting for CalibrationRunner to send calibration results" + Environment.NewLine);
+                File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff", CultureInfo.InvariantCulture) + "Waiting for CalibrationRunner to send calibration results" + Environment.NewLine);
 
                 #region Receiving from Handlers and setting message Formatters
                 Message msg1 = null;
@@ -293,34 +295,34 @@ namespace ServerHandlerFactory
 
                 msg1 = Handler1RE.Receive();
                 //msg1.Formatter = new XmlMessageFormatter(new String[] { "System.String,mscorlib" });
-                File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "A message from Handler1 has been received." + Environment.NewLine);
+                File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff", CultureInfo.InvariantCulture) + "A message from Handler1 has been received." + Environment.NewLine);
                 msg2 = Handler2RE.Receive();
                 // msg2.Formatter = new XmlMessageFormatter(new String[] { "System.String,mscorlib" });
-                File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "A message from Handler2 has been received." + Environment.NewLine);
+                File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff", CultureInfo.InvariantCulture) + "A message from Handler2 has been received." + Environment.NewLine);
                 #endregion
 
                 if (processHandlerReply(msg1) == "NOTIF" && processHandlerReply(msg2) == "NOTIF")
                 {
-                    File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Both trackers were calibrated. Proceeding." + Environment.NewLine);
+                    File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff", CultureInfo.InvariantCulture) + "Both trackers were calibrated. Proceeding." + Environment.NewLine);
                     break;
                 }
-                    File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Unkown message received. Waiting for NOTIFs from both handlers." + Environment.NewLine);
+                    File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff", CultureInfo.InvariantCulture) + "Unkown message received. Waiting for NOTIFs from both handlers." + Environment.NewLine);
             }
             #endregion
 
             #region Loop that sends Connect request to handlers.
             do
             {
-                Message connectMsg = new Message("connect");
-                connectMsg.Label = "REQ";
-                Handler1RQ.Send(connectMsg);
-                Handler2RQ.Send(connectMsg);
+                Message connectMessage = new Message("connect");
+                connectMessage.Label = "REQ";
+                Handler1RQ.Send(connectMessage);
+                Handler2RQ.Send(connectMessage);
 
                 bool Handler1ERR = false;
                 bool Handler2ERR = false;
                 bool notCorr = false;
 
-                File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "connect-loop: Connecting..." + Environment.NewLine);
+                File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff", CultureInfo.InvariantCulture) + "connect-loop: Connecting..." + Environment.NewLine);
 
                 #region Receiving from Handlers and setting message Formatters
                 Message msg1 = Handler1RE.Receive();
@@ -331,35 +333,35 @@ namespace ServerHandlerFactory
                 #endregion
 
                 #region "BODY-based CORRELATION" if message from Handler1 is not correlated. 
-                if (!msg1.Body.Equals(connectMsg.Body)) //Checks if message from Handler1 is correlated.
+                if (!msg1.Body.Equals(connectMessage.Body)) //Checks if message from Handler1 is correlated.
                 {
-                    File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Message received from Handler 1 does not correlate with the message received from the Stimuli-Module. Body= " + msg1.Body.ToString() + Environment.NewLine);
+                    File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff", CultureInfo.InvariantCulture) + "Message received from Handler 1 does not correlate with the message received from the Stimuli-Module. Body= " + msg1.Body.ToString() + Environment.NewLine);
                     Handler1ERR = true;
                     notCorr = true;
                 }
                 #endregion
                 #region "BODY-based CORRELATION" if message from Handler2 is not correlated.
-                if (!msg2.Body.Equals(connectMsg.Body))
+                if (!msg2.Body.Equals(connectMessage.Body))
                 {
-                    File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Message received from Handler 2 does not correlate with the message received from the Stimuli-Module Body= " + msg2.Body.ToString() + Environment.NewLine);
+                    File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff", CultureInfo.InvariantCulture) + "Message received from Handler 2 does not correlate with the message received from the Stimuli-Module Body= " + msg2.Body.ToString() + Environment.NewLine);
                     Handler2ERR = true;
                     notCorr = true;
                 }
                 #endregion
 
-                File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Messages received from both Handler 1 & 2 correlate with the message received from the Stimuli-Module" + Environment.NewLine);
+                File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff", CultureInfo.InvariantCulture) + "Messages received from both Handler 1 & 2 correlate with the message received from the Stimuli-Module" + Environment.NewLine);
 
                 #region Handler1 has not received Acknowledgement
                 if (processHandlerReply(msg1) != "ACK") //Deals with Handler1's the received Acknowledgements or lack thereof
                 {
                     if (processHandlerReply(msg1) == "ERR")
                     {
-                        File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Received an 'ERR' from Handler1" + Environment.NewLine);
+                        File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff", CultureInfo.InvariantCulture) + "Received an 'ERR' from Handler1" + Environment.NewLine);
                         Handler1ERR = true;
                     }
                     else //necessary?
                     {
-                        File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Received an 'UNKNOWN' from Handler1" + Environment.NewLine);
+                        File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff", CultureInfo.InvariantCulture) + "Received an 'UNKNOWN' from Handler1" + Environment.NewLine);
                         Handler1ERR = true;
                     }
                 }
@@ -369,12 +371,12 @@ namespace ServerHandlerFactory
                 {
                     if (processHandlerReply(msg2) == "ERR")
                     {
-                        File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Received an 'ERR' from Handler2" + Environment.NewLine);
+                        File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff", CultureInfo.InvariantCulture) + "Received an 'ERR' from Handler2" + Environment.NewLine);
                         Handler2ERR = true;
                     }
                     else //is this necessary?
                     {
-                        File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Received an 'UNKNOWN' from Handler2" + Environment.NewLine);
+                        File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff", CultureInfo.InvariantCulture) + "Received an 'UNKNOWN' from Handler2" + Environment.NewLine);
                         Handler2ERR = true;
                     }
                 }
@@ -384,12 +386,12 @@ namespace ServerHandlerFactory
                 if (Handler1ERR || Handler2ERR)
                 {
                     if (notCorr)
-                        File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Check Handler logs to identify correlation issues." + Environment.NewLine);
-                    File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Sending a ERR-message. Check Handler logs." + Environment.NewLine);
+                        File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff",CultureInfo.InvariantCulture) + "Check Handler logs to identify correlation issues." + Environment.NewLine);
+                    File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff", CultureInfo.InvariantCulture) + "Sending a ERR-message. Check Handler logs." + Environment.NewLine);
                     continue;
                 }
                 #endregion
-                File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "FactoryObserver connect-Loop ending." + Environment.NewLine);
+                File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff", CultureInfo.InvariantCulture) + "FactoryObserver connect-Loop ending." + Environment.NewLine);
                 break;
             } while (true);
 
@@ -402,7 +404,7 @@ namespace ServerHandlerFactory
                 bool Handler2ERR = false;
                 bool notCorr = false;
 
-                File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "At the beginning of the FactoryObserver SyncRun loop." + Environment.NewLine);
+                File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff", CultureInfo.InvariantCulture) + "At the beginning of the FactoryObserver SyncRun loop." + Environment.NewLine);
                 receivedMessage = new Message();
                 Response = new Message();
 
@@ -416,7 +418,7 @@ namespace ServerHandlerFactory
                 receivedMessage_Copy.Body = receivedMessage.Body.ToString();
                 receivedMessage_Copy.Label = receivedMessage.Label.ToString();
 
-                File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "FactoryObserver SyncRun Loop has received a message from Stimuli-module." + Environment.NewLine);
+                File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff", CultureInfo.InvariantCulture) + "FactoryObserver SyncRun Loop has received a message from Stimuli-module." + Environment.NewLine);
 
                 //Parallel Sending. Using Task here does not seem smart, but its just to be on the safe side.
                 //Task.Run(() => Handler1RQ.Send(receivedMessage));
@@ -449,7 +451,7 @@ namespace ServerHandlerFactory
                 #region "BODY-based CORRELATION" if message from Handler1 is not correlated. 
                 if (!msg1.Body.Equals(receivedMessage.Body)) //Checks if message from Handler1 is correlated.
                 {
-                    File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Message received from Handler 1 does not correlate with the message received from the Stimuli-Module. Body= " + msg1.Body.ToString() + Environment.NewLine);
+                    File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff", CultureInfo.InvariantCulture) + "Message received from Handler 1 does not correlate with the message received from the Stimuli-Module. Body= " + msg1.Body.ToString() + Environment.NewLine);
                     Handler1ERR = true;
                     notCorr = true;
                 }
@@ -457,27 +459,27 @@ namespace ServerHandlerFactory
                 #region "BODY-based CORRELATION" if message from Handler2 is not correlated.
                 if (!msg2.Body.Equals(receivedMessage_Copy.Body))
                 {
-                    File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Message received from Handler 2 does not correlate with the message received from the Stimuli-Module Body= " + msg2.Body.ToString() + Environment.NewLine);
+                    File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff", CultureInfo.InvariantCulture) + "Message received from Handler 2 does not correlate with the message received from the Stimuli-Module Body= " + msg2.Body.ToString() + Environment.NewLine);
                     Handler2ERR = true;
                     notCorr = true;
                 }
                 #endregion
 
-                File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Messages received from both Handler 1 & 2 correlate with the message received from the Stimuli-Module" + Environment.NewLine);
+                File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff", CultureInfo.InvariantCulture) + "Messages received from both Handler 1 & 2 correlate with the message received from the Stimuli-Module" + Environment.NewLine);
 
                 #region Handler1 has not received Acknowledgement
                 if (processHandlerReply(msg1) != "ACK") //Deals with Handler1's the received Acknowledgements or lack thereof
                 {
                     if (processHandlerReply(msg1) == "ERR")
                     {
-                        File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Received an 'ERR' from Handler1" + Environment.NewLine);
+                        File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff", CultureInfo.InvariantCulture) + "Received an 'ERR' from Handler1" + Environment.NewLine);
                         Handler1ERR = true;
                         //Response.Body = "Handler1";
                         //Response.Label = "ERR";
                     }
                     else //necessary?
                     {
-                        File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Received an 'UNKNOWN' from Handler1" + Environment.NewLine);
+                        File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff", CultureInfo.InvariantCulture) + "Received an 'UNKNOWN' from Handler1" + Environment.NewLine);
                         Handler1ERR = true;
                         //Response.Body = "Handler1";
                         //Response.Label = "UNKNOWN";
@@ -491,14 +493,14 @@ namespace ServerHandlerFactory
                 {
                     if (processHandlerReply(msg2) == "ERR")
                     {
-                        File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Received an 'ERR' from Handler2" + Environment.NewLine);
+                        File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff", CultureInfo.InvariantCulture) + "Received an 'ERR' from Handler2" + Environment.NewLine);
                         Handler2ERR = true;
                         //Response.Body = "Handler2";
                         //Response.Label = "ERR";
                     }
                     else //is this necessary?
                     {
-                        File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Received an 'UNKNOWN' from Handler2" + Environment.NewLine);
+                        File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff", CultureInfo.InvariantCulture) + "Received an 'UNKNOWN' from Handler2" + Environment.NewLine);
                         Handler2ERR = true;
                         //Response.Body = "Handler2";
                         //Response.Label = "UNKNOWN";
@@ -513,8 +515,8 @@ namespace ServerHandlerFactory
                 if (Handler1ERR || Handler2ERR)
                 {
                     if (notCorr)
-                        File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Check Handler logs to identify correlation issues." + Environment.NewLine);
-                    File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Sending a ERR-message. Check Handler logs." + Environment.NewLine);
+                        File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff", CultureInfo.InvariantCulture) + "Check Handler logs to identify correlation issues." + Environment.NewLine);
+                    File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff", CultureInfo.InvariantCulture) + "Sending a ERR-message. Check Handler logs." + Environment.NewLine);
                     Response.Body = receivedMessage.Body;
                     Response.Label = "ERR";
                     Response.ResponseQueue = IncomingQueue;
@@ -523,9 +525,9 @@ namespace ServerHandlerFactory
                 }
                 #endregion
 
-                if (receivedMessage.Body.ToString().ToLower() == "stop")
+                if (receivedMessage.Body.ToString().ToLowerInvariant() == "stop")
                 {
-                    File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Received a STOP-message. SyncRun will not loop from here on." + Environment.NewLine);
+                    File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff", CultureInfo.InvariantCulture) + "Received a STOP-message. SyncRun will not loop from here on." + Environment.NewLine);
                     runLoop = false;
                 }
 
@@ -536,7 +538,7 @@ namespace ServerHandlerFactory
                 OutgoingQueue.Send(Response);
                 #endregion
 
-                File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "FactoryObserver SyncRun Loop ending." + Environment.NewLine);
+                File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff", CultureInfo.InvariantCulture) + "FactoryObserver SyncRun Loop ending." + Environment.NewLine);
             } while (runLoop);
             #endregion
         }
@@ -555,18 +557,18 @@ namespace ServerHandlerFactory
             }
             catch (Exception e)
             {
-                File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "An Exception has occured @processHandlerReply: " + e + Environment.NewLine);
+                File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff", CultureInfo.InvariantCulture) + "An Exception has occured @processHandlerReply: " + e + Environment.NewLine);
             }
             switch (label) //act based on the label Type
             {
                 case "ACK": //successful events will fall in this category. This is the expected case.
                     {
-                        File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Received: " + body + " - ACK - " + label + Environment.NewLine);
+                        File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff", CultureInfo.InvariantCulture) + "Received: " + body + " - ACK - " + label + Environment.NewLine);
                         return "ACK";
                     }
                 case "NOTIF": //only used for "calibrated" notification, which is sent by handler in the beginning.
                     {
-                        File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Received: " + body + " - NOTIF - " + label + Environment.NewLine);
+                        File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff", CultureInfo.InvariantCulture) + "Received: " + body + " - NOTIF - " + label + Environment.NewLine);
                         if (body == "calibrate")
                             return "NOTIF";
                         else
@@ -574,18 +576,18 @@ namespace ServerHandlerFactory
                     }
                 case "CALIB": //USELESS
                     {
-                        File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Received: " + body + " - CALIB - " + label + Environment.NewLine);
+                        File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff", CultureInfo.InvariantCulture) + "Received: " + body + " - CALIB - " + label + Environment.NewLine);
                         return "CALIB";
                     }
                 case "EXCEPTION":
                     {
-                        File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "FactoryObserver has received an EXCEPTION from one of the Handlers: " + body + Environment.NewLine);
+                        File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff", CultureInfo.InvariantCulture) + "FactoryObserver has received an EXCEPTION from one of the Handlers: " + body + Environment.NewLine);
                         return "EXCEPTION";
                     }
                 case "ERR":
                     {
 
-                        File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "FactoryObserver has received an ERR from one of the Handlers: " + body + Environment.NewLine);
+                        File.AppendAllText(ServerHandlerFactory.FactoryFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff", CultureInfo.InvariantCulture) + "FactoryObserver has received an ERR from one of the Handlers: " + body + Environment.NewLine);
                         return "ERR";
                         //In Future, handle errors in a better way. Add --- retries; "Retrying message: count x" 
                     }

@@ -12,5 +12,6 @@
         bool pauseListening();
         bool StopListening();
         bool Deactivate();
+        bool Connect();
     }
 }

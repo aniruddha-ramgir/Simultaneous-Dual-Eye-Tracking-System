@@ -41,7 +41,7 @@ namespace Calibration
 
             // Listen for changes in connection to server
             GazeManager.Instance.AddConnectionStateListener(this);
-            port.Text = Convert.ToString(paraprocess.Program.Alpha._port);
+            port.Text = Convert.ToString(paraprocess.Program.Alpha._port, System.Globalization.CultureInfo.InvariantCulture);
 
             // Fetch current status
             OnConnectionStateChanged(GazeManager.Instance.IsActivated);
@@ -120,6 +120,7 @@ namespace Calibration
                         {
                             //Send message that the tracker is calibrated    
                             ServerHandler.HandlerFacade.Observer.sendResponse("calibrate", "NOTIF");
+                            paraprocess.Program.Alpha.isCalibrated = true;
                         }
                         break;
                     }
@@ -209,11 +210,6 @@ namespace Calibration
         {
             GazeManager.Instance.Deactivate();
             Environment.Exit(0);
-        }
-
-        private void TextBox_TextChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
-        {
-            //DO NOTHING.
         }
 
         private void stop_Click(object sender, RoutedEventArgs e) //Is this necessary, now that we can deactivate after accepting calibration results?

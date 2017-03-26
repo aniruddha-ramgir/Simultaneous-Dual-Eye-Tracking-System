@@ -5,21 +5,19 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:ServerHandlerFactory"
         mc:Ignorable="d"
-        Title="Simultaneous Dual Eye-Tracking System" Height="383.254" Width="583.356">
+        Title="Simultaneous Dual Eye-Tracking System" Height="460.649" Width="559.988" ResizeMode="NoResize" FontSize="16" WindowStartupLocation="CenterScreen">
     <Grid Margin="32,26,24,19">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="69*"/>
             <ColumnDefinition Width="448*"/>
         </Grid.ColumnDefinitions>
-        <!-- <ComboBox Margin="10,0,10,197" Grid.ColumnSpan="2" Name="trackerNumber">
-            <ComboBoxItem>1</ComboBoxItem>
-            <ComboBoxItem IsSelected="True">2</ComboBoxItem>
-            <ComboBoxItem>3</ComboBoxItem>
-        </ComboBox>  -->
-        <TextBox Margin="10,10,275,230" Name="incoming"  RenderTransformOrigin="0.75,-0.556" Grid.ColumnSpan="2" TextChanged="incoming_TextChanged" ></TextBox>
-        <Button Margin="10,96,10,144" Click="send" Grid.ColumnSpan="2">Send</Button>
-        <Button Margin="10,168,10,76" Click="Start" Grid.ColumnSpan="2">Start</Button>
-        <TextBox Margin="199,10,10,230" x:Name="incoming_Copy"  RenderTransformOrigin="0.75,-0.556"  Grid.Column="1" TextChanged="incoming_Copy_TextChanged" />
-        <Button Margin="10,236,10,8" Grid.ColumnSpan="2" Content="EXIT" Click="Button_Click"/>
+        <TextBox Margin="10,10,270,310" Name="incoming"  RenderTransformOrigin="0.75,-0.556" TextChanged="incoming_TextChanged" Grid.ColumnSpan="2" />
+        <TextBox Margin="201,10,10,310" x:Name="incoming_Copy"  RenderTransformOrigin="0.75,-0.556" TextChanged="incoming_Copy_TextChanged" Grid.Column="1" />
+        <Button Margin="10,82,10,229" Click="send" Grid.ColumnSpan="2">Send</Button>
+        <Button Margin="10,163,10,154" Click="Start" Grid.ColumnSpan="2">Start</Button>
+        <Button Margin="10,328,270,0" Content="SOURCE" Click="Button_Click_2" Grid.ColumnSpan="2"/>
+        <Button Margin="201,328,10,0" Content="ABOUT" Click="Button_Click_1" Grid.Column="1"/>
+        <Button Margin="10,238,10,81" Grid.ColumnSpan="2" Content="EXIT" Click="Button_Click"/>
+
     </Grid>
 </Window>

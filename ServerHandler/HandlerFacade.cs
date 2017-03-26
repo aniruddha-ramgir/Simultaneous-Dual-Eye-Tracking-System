@@ -1,9 +1,10 @@
 ﻿using Microsoft.Win32;
-using ServerHandler.Properties;
 using System;
+using System.Globalization;
 using System.IO;
 using System.Messaging;
 using System.Threading;
+using System.Configuration;
 
 namespace ServerHandler
 {
@@ -11,10 +12,11 @@ namespace ServerHandler
     static class HandlerFacade 
     {
         #region relevant objects and variables
-       public static string logFilePathName = Resources.logPath+string.Format(@"{0}.txt", DateTime.Now.Ticks);
+       public static string logFilePathName = ConfigurationManager.AppSettings["logPath"] + string.Format(CultureInfo.InvariantCulture,@"{0}.txt", DateTime.Now.Ticks);
        public static Thread ObserverWorker = null;
        public static HandlerObserver Observer;
        public static Int32 _port { get; private set; }
+
         #endregion
 
         #region Do not touch
@@ -30,11 +32,11 @@ namespace ServerHandler
             string[] args = Environment.GetCommandLineArgs(); 
 
             _port = Convert.ToInt32(args[1]);
-            String _ConfigPath = Resources.configPath+_port.ToString()+".cfg"; //path can be stored in a editable resource. OR within this project, use relative path
+            String _ConfigPath = ConfigurationManager.AppSettings["configPath"]+_port.ToString()+".cfg"; //path can be stored in a editable resource. OR within this project, use relative path
             String _ServerPath = GetServerExecutablePath();
-
+            //System.Windows.Forms.MessageBox.Show(ConfigurationManager.AppSettings["logPath"] + ConfigurationManager.AppSettings["configPath"] + ConfigurationManager.AppSettings["mainPath"] + ConfigurationManager.AppSettings["testPath"]);
             //If SDET log folder doesn't exist, the below line creates it.
-            System.IO.Directory.CreateDirectory(Resources.logPath);
+            System.IO.Directory.CreateDirectory(ConfigurationManager.AppSettings["logPath"]);
 
             File.AppendAllText(logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "This is the log file for the Tracker/Handler associated with the port number:" + _port.ToString()+ Environment.NewLine);
             File.AppendAllText(logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Inside HandlerFacade Main()" + Environment.NewLine);
@@ -100,13 +102,13 @@ namespace ServerHandler
         #region Constructor code
         public HandlerObserver(Int32 _port) //creates a queue using port for the Handler process.
         {
-            File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Inside HandlerObserver Constructor." + Environment.NewLine);
+            File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff",CultureInfo.InvariantCulture) + "Inside HandlerObserver Constructor." + Environment.NewLine);
             port = _port;
             receivedMessage = new Message();
             try
             {
-                IncomingQueueName = _port.ToString() + "RQ";
-                OutgoingQueueName = _port.ToString() + "RE";
+                IncomingQueueName = _port.ToString(CultureInfo.InvariantCulture) + "RQ";
+                OutgoingQueueName = _port.ToString(CultureInfo.InvariantCulture) + "RE";
 
                 #region IncomingQueue
                 if (MessageQueue.Exists(@".\Private$\" + IncomingQueueName))
@@ -157,7 +159,7 @@ namespace ServerHandler
             }
             catch (Exception e)
             {
-                File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "An Exception has occured @HandlerObserver Constructor: " + e + Environment.NewLine);
+                File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff", CultureInfo.InvariantCulture) + "An Exception has occured @HandlerObserver Constructor: " + e + Environment.NewLine);
             }
         }
         #endregion
@@ -170,11 +172,11 @@ namespace ServerHandler
                 IncomingQueue.ReceiveCompleted += new ReceiveCompletedEventHandler(MyReceiveCompleted);
                 // Begin the asynchronous receive operation.
                 IncomingQueue.BeginReceive();
-                File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "HandlerObserver has begun to receive messages." + Environment.NewLine);
+                File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff", CultureInfo.InvariantCulture) + "HandlerObserver has begun to receive messages." + Environment.NewLine);
             }
             catch (Exception e)
             {
-                File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "An Exception has occured @listenIncomingQueue: " + e + Environment.NewLine);
+                File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff", CultureInfo.InvariantCulture) + "An Exception has occured @listenIncomingQueue: " + e + Environment.NewLine);
             }
         } 
         private void MyReceiveCompleted(Object source, ReceiveCompletedEventArgs asyncResult)
@@ -194,16 +196,16 @@ namespace ServerHandler
 
                 // Process Message and log event
                 if (executeMessage(receivedMessage))
-                    File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "HandlerObserver has received a message and it was executed." + Environment.NewLine);
+                    File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff", CultureInfo.InvariantCulture) + "HandlerObserver has received a message and it was executed." + Environment.NewLine);
                 else
-                    File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "HandlerObserver has received a message and it was not executed." + Environment.NewLine);
+                    File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff", CultureInfo.InvariantCulture) + "HandlerObserver has received a message and it was not executed." + Environment.NewLine);
                
                 //Restart the asynchronous receive operation.
                 workingQueue.BeginReceive();
             }
             catch (Exception e)
             {
-                File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "An Exception has occured @MyReceiveCompleted: " + e + Environment.NewLine);
+                File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff", CultureInfo.InvariantCulture) + "An Exception has occured @MyReceiveCompleted: " + e + Environment.NewLine);
             }
         }
         #endregion
@@ -220,7 +222,7 @@ namespace ServerHandler
             }
             catch(Exception e)
             {
-                File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "An Exception has occured @executeMessage: " + e + Environment.NewLine);
+                File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff", CultureInfo.InvariantCulture) + "An Exception has occured @executeMessage: " + e + Environment.NewLine);
             }
             switch (label) //act based on the label Type
             {
@@ -261,23 +263,17 @@ namespace ServerHandler
         #region These are practically useless
         public bool handleAcknowledgement(string body)
         {
-            File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "How did you get here?. Stimuli-Module should not send ACKs to the Handler." + body+Environment.NewLine);
+            File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff", CultureInfo.InvariantCulture) + "How did you get here?. Stimuli-Module should not send ACKs to the Handler." + body+Environment.NewLine);
             return true;
         }
         public bool handleException(string body)
         {
-            File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "An Exception was received from the FactoryFacade ->This should not be happening, because FactoryFacade should not send any ERRs or EXCEPTIONSs to ServerHandler.---" + body + Environment.NewLine);
-            /* if (System.Windows.Forms.MessageBox.Show(body) == System.Windows.Forms.DialogResult.OK)
-             {
-             //No interruption is necessary as we are logging everything.
-                 return true;
-             }
-             return false; */
+            File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff", CultureInfo.InvariantCulture) + "An Exception was received from the FactoryFacade ->This should not be happening, because FactoryFacade should not send any ERRs or EXCEPTIONSs to ServerHandler.---" + body + Environment.NewLine);
             return true;
         }
         public bool handleNotification(string body)
         {
-            File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "How did you get here?. Stimuli-Module should not send NOTIFs to the Handler." + body + Environment.NewLine);
+            File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff", CultureInfo.InvariantCulture) + "How did you get here?. Stimuli-Module should not send NOTIFs to the Handler." + body + Environment.NewLine);
             return true;
         }
         #endregion
@@ -291,13 +287,13 @@ namespace ServerHandler
                         if (paraprocess.Program.Alpha.Connect())
                         {
                             sendResponse(body, "ACK");
-                            File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Connected to the socket/Tracker. Sending ACK message back to the Factory" + Environment.NewLine);
+                            File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff", CultureInfo.InvariantCulture) + "Connected to the socket/Tracker. Sending ACK message back to the Factory" + Environment.NewLine);
                             return true;
                         }
                         else
                         {
                             sendResponse(body, "ERR");
-                            File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Not connected to the socket/Tracker. Sending error (ERR) message back to the Factory" + Environment.NewLine);
+                            File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff", CultureInfo.InvariantCulture) + "Not connected to the socket/Tracker. Sending error (ERR) message back to the Factory" + Environment.NewLine);
                             return false;
                         }
                     }
@@ -306,13 +302,13 @@ namespace ServerHandler
                         if (!paraprocess.Program.Alpha.IsCalibrated())
                         {
                             sendResponse(body, "ERR");
-                            File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Tracker is not calibrated. Sending error (ERR) message back to the Factory" + Environment.NewLine);
+                            File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff", CultureInfo.InvariantCulture) + "Tracker is not calibrated. Sending error (ERR) message back to the Factory" + Environment.NewLine);
                             return true;
                         }
                         if (paraprocess.Program.Alpha.preListening())
                         {
                             sendResponse(body, "ACK");
-                            File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Tracker is calibrated. Response File was created. Sending acknowledgement (ACK) back to the Factory." + Environment.NewLine);
+                            File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff", CultureInfo.InvariantCulture) + "Tracker is calibrated. Response File was created. Sending acknowledgement (ACK) back to the Factory." + Environment.NewLine);
                             return true;
                         }
                         return false;
@@ -323,13 +319,13 @@ namespace ServerHandler
                         if (paraprocess.Program.Alpha.IsListening())
                         {
                             sendResponse(body, "ACK");
-                            File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") +"|"+ port.ToString() + " Tracker is listening and is receiving gazeData now." + Environment.NewLine);
+                            File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff", CultureInfo.InvariantCulture) +"|"+ port.ToString(CultureInfo.InvariantCulture) + " Tracker is listening and is receiving gazeData now." + Environment.NewLine);
                             return true;
                         }
                         else
                         {
                             sendResponse(body, "ERR");
-                            File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "|"+port.ToString() + " Tracker is not listening and is not receiving gazeData now." + Environment.NewLine);
+                            File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff", CultureInfo.InvariantCulture) + "|"+port.ToString(CultureInfo.InvariantCulture) + " Tracker is not listening and is not receiving gazeData now." + Environment.NewLine);
                             return false;
                         }
                     }
@@ -338,13 +334,13 @@ namespace ServerHandler
                         if (paraprocess.Program.Alpha.pauseListening())
                         {
                             sendResponse(body, "ACK");
-                            File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + " Pause success." + Environment.NewLine);
+                            File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff", CultureInfo.InvariantCulture) + " Pause success." + Environment.NewLine);
                             return true;
                         }
                         else
                         {
                             sendResponse(body, "ERR");
-                            File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + " Pause failed.." + Environment.NewLine);
+                            File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff", CultureInfo.InvariantCulture) + " Pause failed.." + Environment.NewLine);
                             return true;
                         }
                     }
@@ -354,13 +350,13 @@ namespace ServerHandler
                         if (paraprocess.Program.Alpha.IsListening())
                         {
                             sendResponse(body, "ACK");
-                            File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + " Resume success." + Environment.NewLine);
+                            File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff", CultureInfo.InvariantCulture) + " Resume success." + Environment.NewLine);
                             return true;
                         }
                         else
                         {
                             sendResponse(body, "ERR");
-                            File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + " Resume failed.." + Environment.NewLine);
+                            File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff", CultureInfo.InvariantCulture) + " Resume failed.." + Environment.NewLine);
                             return true;
                         }
                     }
@@ -369,18 +365,18 @@ namespace ServerHandler
                         if (!paraprocess.Program.Alpha.StopListening())
                         {
                             sendResponse(body, "ERR");
-                            File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + " Stop failed." + Environment.NewLine);
+                            File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff", CultureInfo.InvariantCulture) + " Stop failed." + Environment.NewLine);
                             return false;
                         }
                         sendResponse(body,"ACK");
-                        File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + " Stop success.Deactivating." + Environment.NewLine);
+                        File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff", CultureInfo.InvariantCulture) + " Stop success.Deactivating." + Environment.NewLine);
                         return paraprocess.Program.Alpha.Deactivate();
                     }
 
                 default:
                     {
                         sendResponse(body, "UNKNOWN");
-                        File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + " Unrecognized body----" + body + Environment.NewLine);
+                        File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff", CultureInfo.InvariantCulture) + " Unrecognized body----" + body + Environment.NewLine);
                         return false;
                     }
             }
@@ -389,7 +385,7 @@ namespace ServerHandler
         {
             try
             {
-                if (body.ToLower() == "test")
+                if (body.ToLowerInvariant() == "test")
                 {
                     paraprocess.Program.Alpha.isTest = true;
                     sendResponse(body, "ACK");
@@ -399,12 +395,12 @@ namespace ServerHandler
                     paraprocess.Program.Alpha.isTest = false;
                     sendResponse(body, "ACK");
                 }
-                File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Experiment type to " + body + "  was set succesfully." + Environment.NewLine);
+                File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff", CultureInfo.InvariantCulture) + "Experiment type to " + body + "  was set succesfully." + Environment.NewLine);
                 return true;
             }
             catch(Exception e)
             {
-                File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Exception occured at HandlerFacade.HandlerObserver.HandleType() : " +e + Environment.NewLine);
+                File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff", CultureInfo.InvariantCulture) + "Exception occured at HandlerFacade.HandlerObserver.HandleType() : " +e + Environment.NewLine);
                 return false;
             }
         }
@@ -412,15 +408,16 @@ namespace ServerHandler
         {
             try
             {
-                paraprocess.Program.Alpha._sessionName = body.ToLower();
+                
+                paraprocess.Program.Alpha._sessionName = body.ToLowerInvariant(); ;
                 sendResponse(body, "ACK");
-                File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Experiment session-name has been set to "+body+" succesfully." + Environment.NewLine);
+                File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff", CultureInfo.InvariantCulture) + "Experiment session-name has been set to "+body+" succesfully." + Environment.NewLine);
                 return true;
             }
             catch(Exception e)
             {
                 sendResponse(body, "ERR");
-                File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Exception occured at HandlerFacade.HandlerObserver.HandleName() : " + e + Environment.NewLine);
+                File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff", CultureInfo.InvariantCulture) + "Exception occured at HandlerFacade.HandlerObserver.HandleName() : " + e + Environment.NewLine);
                 return false;
             }
         }
@@ -433,7 +430,7 @@ namespace ServerHandler
             Response.Body = body;
             Response.Label = label;
             OutgoingQueue.Send(Response);
-            File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Sending message -"+body+"- to Factory Facade" + Environment.NewLine);
+            File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff", CultureInfo.InvariantCulture) + "Sending message -"+body+"- to Factory Facade" + Environment.NewLine);
         }
     }
 }

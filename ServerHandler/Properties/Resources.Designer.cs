@@ -59,41 +59,5 @@ namespace ServerHandler.Properties {
                 resourceCulture = value;
             }
         }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to C:\\config\\.
-        /// </summary>
-        internal static string configPath {
-            get {
-                return ResourceManager.GetString("configPath", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to C:\\Users\\Aniruddha\\Documents\\SDET\\logs\\ServerHandler\\.
-        /// </summary>
-        internal static string logPath {
-            get {
-                return ResourceManager.GetString("logPath", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to C:\\Users\\Aniruddha\\Documents\\SDET\\experiment\\.
-        /// </summary>
-        internal static string mainPath {
-            get {
-                return ResourceManager.GetString("mainPath", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to C:\\Users\\Aniruddha\\Documents\\SDET\\test\\.
-        /// </summary>
-        internal static string testPath {
-            get {
-                return ResourceManager.GetString("testPath", resourceCulture);
-            }
-        }
     }
 }

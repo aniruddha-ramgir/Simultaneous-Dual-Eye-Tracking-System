@@ -5,10 +5,11 @@ using System.Threading;
 using EyeTribe.ClientSdk;
 using EyeTribe.ClientSdk.Data;
 using System.Collections.Generic;
-using ServerHandler.Properties;
 using System.Threading.Tasks;
 using System.Net.Sockets;
 using Newtonsoft.Json.Linq;
+using System.Globalization;
+using System.Configuration;
 
 namespace paraprocess
 {
@@ -20,13 +21,13 @@ namespace paraprocess
 
         public static bool launch(Int32 portnumber, string configPath,string serverPath)
         {
-            File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Inside paraprocess.Program.launch()" + Environment.NewLine);
+            File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff", CultureInfo.InvariantCulture) + "Inside paraprocess.Program.launch()" + Environment.NewLine);
             //Alpha = new paraprocess.EyeTribeAPIHandler(portnumber, configPath, serverPath);
             Alpha = new paraprocess.EyeTribeNonAPIHandler(portnumber, configPath, serverPath);
 
             if (Alpha.ServerStarted != true)
             {
-                File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Unable to start Eyetribe Server process #1 @paraprocess.Program.launch" + Environment.NewLine);
+                File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff", CultureInfo.InvariantCulture) + "Unable to start Eyetribe Server process #1 @paraprocess.Program.launch" + Environment.NewLine);
                 return false;
             } 
             return true; //should return acknowledgement that processes have begun successfully
@@ -83,7 +84,7 @@ namespace paraprocess
                 StartServerProcess();//start device 0 if no server is currently running
          //   }
             // Connect client
-            GazeManager.Instance.Activate(GazeManagerCore.ApiVersion.VERSION_1_0, "localhost", _port); // GazeManagerCore.ClientMode.Push is default
+            //GazeManager.Instance.Activate(GazeManagerCore.ApiVersion.VERSION_1_0, "localhost", _port); // GazeManagerCore.ClientMode.Push is default
 
             //Initiliazing gazeData Queues
             responseData1 = new Queue<double[]>();
@@ -91,8 +92,8 @@ namespace paraprocess
             //responseData2 = new Queue<String[]>();
 
             //If SDET test and main folders don't exist, the below line creates them.
-            System.IO.Directory.CreateDirectory(Resources.testPath);
-            System.IO.Directory.CreateDirectory(Resources.mainPath);
+            System.IO.Directory.CreateDirectory(ConfigurationManager.AppSettings["testPath"]);
+            System.IO.Directory.CreateDirectory(ConfigurationManager.AppSettings["mainPath"]);
         }
 
         #region These methods deal with starting Servers and also implement IServerHandler
@@ -123,10 +124,10 @@ namespace paraprocess
             psi.WindowStyle = ProcessWindowStyle.Normal; //set it to hidden 
             psi.FileName = _sPath;
             psi.Arguments = _cPath;
-            if (psi.FileName == string.Empty || File.Exists(psi.FileName) == false)
+            if (string.IsNullOrEmpty(psi.FileName) || File.Exists(psi.FileName) == false)
             {
                 ServerStarted = false;
-                File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Starting Eye-Tribe server failed." + Environment.NewLine);
+                File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff", CultureInfo.InvariantCulture) + "Starting Eye-Tribe server failed." + Environment.NewLine);
                 return;
             }
             try
@@ -134,12 +135,12 @@ namespace paraprocess
                 Process processServer = new Process();
                 processServer.StartInfo = psi;
                 processServer.Start();
-                File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Starting Eye-Tribe server success." + Environment.NewLine);
+                File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff", CultureInfo.InvariantCulture) + "Starting Eye-Tribe server success." + Environment.NewLine);
                 ServerStarted = true;
             }
             catch (Exception e)
             {
-                File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "An Exception has occured @StarServerrProcess: " + e + Environment.NewLine);
+                File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff", CultureInfo.InvariantCulture) + "An Exception has occured @StarServerrProcess: " + e + Environment.NewLine);
                 ServerStarted = false;
             }
             Thread.Sleep(200); // wait for it to load
@@ -184,9 +185,9 @@ namespace paraprocess
                 //string _name = Microsoft.VisualBasic.Interaction.InputBox("Please enter the name of the current experiment? This will be used to identify the current session", "Experiment Identifier");
                 //Set path of the .csv file to be used
                 if (isTest)
-                    workingFilePath = Resources.testPath + _sessionName + _port.ToString() + ".csv";
+                    workingFilePath = ConfigurationManager.AppSettings["testPath"] + _sessionName + _port.ToString() + ".csv";
                 else
-                    workingFilePath = Resources.mainPath + _sessionName + _port.ToString() + ".csv";
+                    workingFilePath = ConfigurationManager.AppSettings["mainPath"] + _sessionName + _port.ToString() + ".csv";
 
                 //If the file doesn't exist, it creates a new file 
                 //and appends "FeatureNames" string to it, as the first line
@@ -290,6 +291,11 @@ namespace paraprocess
 
         }
 
+        public bool Connect()
+        {
+            // Connect client
+            return GazeManager.Instance.Activate(GazeManagerCore.ApiVersion.VERSION_1_0, "localhost", _port); // GazeManagerCore.ClientMode.Push is default
+        }
         public void OnGazeUpdate(GazeData gazeData)
         {
             responseData1.Enqueue(new double[]
@@ -338,7 +344,7 @@ namespace paraprocess
 
     class EyeTribeNonAPIHandler :IServerHandler
     {
-        #region strings
+        #region relevant trings
         const string featureNames = "port,timeStampString,isFixated,FrameState,rawX,rawY,smoothedX,smoothedY," +
             "rawLeftX,rawLeftY,smoothedLeftX,smoothedLeftY,PupilCenterLeftX,PupilCenterLeftY,PupilSizeLeft," +
             "rawRightX,rawRightY,smoothedRightX,smoothedRightY,PupilCenterRightX,PupilCenterRightY,PupilSizeRight," +
@@ -369,8 +375,10 @@ namespace paraprocess
         #region Boolean variables
         public bool ServerStarted { get; private set; }
         public bool isTest = true;
-        bool KeepRunning = false;
-        bool NoStop = false;
+        public bool isCalibrated = false; //IT is set by the Calibration-Handler
+
+        bool isPaused = true;
+        bool isStopped = true;
         bool isConnected = false;
         #endregion
 
@@ -379,20 +387,18 @@ namespace paraprocess
             _port = pNum;
             _cPath = cPath;
             _sPath = sPath;
-            File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Inside paraprocess.EyeTribeHandler Constructor." + Environment.NewLine);
+
+            File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Inside paraprocess.EyeTribeNonAPIHandler Constructor." + Environment.NewLine);
             StartServerProcess();
 
-            // Connect to tracker
-            //Connect();
-
             //If SDET test and main folders don't exist, the below line creates them.
-            System.IO.Directory.CreateDirectory(Resources.testPath);
-            System.IO.Directory.CreateDirectory(Resources.mainPath);
+            System.IO.Directory.CreateDirectory(ConfigurationManager.AppSettings["testPath"]);
+            System.IO.Directory.CreateDirectory(ConfigurationManager.AppSettings["mainPath"]);
         }
 
         public bool IsListening()
         {
-            return KeepRunning;
+            return isPaused;
         } //CHANGE. 
         public bool IsActivated()
         {
@@ -400,7 +406,8 @@ namespace paraprocess
         }
         public bool IsCalibrated()
         {
-            try
+            return isCalibrated;
+          /*  try
             {
 
                 string REQ_isCalibrated = " {\"category\": \"tracker\",\"request\" : \"get\",\"values\": [ \"push\", \"iscalibrated\" ]}";
@@ -428,7 +435,7 @@ namespace paraprocess
             {
                 File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "An exception has occured @IsCalibrated()" + e + Environment.NewLine);
                 return false;
-            }
+            } */
         }
 
         public bool preListening()
@@ -440,16 +447,16 @@ namespace paraprocess
                 
                 //Set path of the .csv file to be used
                 if (isTest)
-                    workingFilePath = Resources.testPath + _sessionName + _port.ToString() + ".csv";
+                    workingFilePath = ConfigurationManager.AppSettings["testPath"] + _sessionName + _port.ToString() + ".csv";
                 else
-                    workingFilePath = Resources.mainPath + _sessionName + _port.ToString() + ".csv";
+                    workingFilePath = ConfigurationManager.AppSettings["mainPath"] + _sessionName + _port.ToString() + ".csv";
 
                 //If the file doesn't exist, it creates a new file and appends "FeatureNames" string to it, as the first line
                 File.AppendAllText(workingFilePath, featureNames + Environment.NewLine);
                 File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + " .csv file created." + Environment.NewLine);
 
-                KeepRunning = true;
-                NoStop = true;
+                isPaused = false;
+                isStopped = false;
                
                 // Initiliaze a seperate thread to parse incoming data
                 incomingThread = new Thread(ListenerLoop);
@@ -469,7 +476,7 @@ namespace paraprocess
             try
             {
                 // Send the obligatory connect request message
-                SendStart(REQ_PUSH);
+                SendStartMessage(REQ_PUSH);
                 //Start the thread that was intiatilised in PreListening()
                 incomingThread.Start();
 
@@ -500,19 +507,7 @@ namespace paraprocess
             {
 
                 timerHeartbeat.Stop();
-              //  string REQ_PULL = "{\"values\":{\"push\":false,\"version\":1},\"category\":\"tracker\",\"request\":\"set\"}";
-               // Send(REQ_PULL);
-                File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Waiting for socket to get emptied. " + Environment.NewLine);
-
-                //SpinWait.SpinUntil(() => socket.Available == 0);
-                //File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Socket Empty. Waiting for StreamReader to get emptied. " + Environment.NewLine);
-
-               // SpinWait.SpinUntil(() => Globalreader.EndOfStream);
-                File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Socket Empty. StreamReader empty. " + Environment.NewLine);
-
-                KeepRunning = false;
-                File.AppendAllText(workingFilePath, breakLine + Environment.NewLine);
-                return true;
+                return isPaused = true;
             }
             catch (Exception e)
             {
@@ -525,13 +520,14 @@ namespace paraprocess
         {
             try
             {
+                SendStartMessage(REQ_PUSH);
+
                 timerHeartbeat = new System.Timers.Timer(250);
                 timerHeartbeat.Elapsed += delegate { Send(REQ_HEATBEAT); };
                 timerHeartbeat.Start();
 
-             //   string REQ_CONNECT = "{\"values\":{\"push\":true,\"version\":1},\"category\":\"tracker\",\"request\":\"set\"}";
-              //  Send(REQ_CONNECT);
-                KeepRunning = true;
+                isPaused = false;
+
                 File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Listener resumed." + Environment.NewLine);
 
             }
@@ -547,22 +543,14 @@ namespace paraprocess
             try
             {
                 timerHeartbeat.Stop();
-                //Send(REQ_PULL);  
-                NoStop = false;     
-                KeepRunning = false;
-                File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Waiting for socket to get emptied. " + Environment.NewLine);
-
-                //SpinWait.SpinUntil(() => socket.Available == 0);
-                //File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Socket Empty. Waiting for StreamReader to get emptied. " + Environment.NewLine);
-
-                //SpinWait.SpinUntil(() => Globalreader.EndOfStream);
-                File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Socket Empty. StreamReader empty. " + Environment.NewLine);
-                
-                //Globalreader.Close();
-                socket.Close();
-                //incomingThread.Abort();
-                File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Stopped. " + Environment.NewLine);
+                isStopped = true;
                 isConnected = false;
+                isCalibrated = false;
+                //isPaused = true; //DONT SET IT TO TRUE, as ListenerLoop will wait endlessly for it turn to FALSE.
+                //No need to close the socket here, because listenerloop will do it on its own.
+
+                File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Stopped. " + Environment.NewLine);
+
                 return true;
             }
             catch (Exception e)
@@ -571,7 +559,8 @@ namespace paraprocess
                 return false;
             }
         }
-        public bool Deactivate() //USELESS.
+
+        public bool Deactivate() //USELESS. DO NOTHING.
         {
             // If not activated dont deactivate.
             if (!IsActivated())
@@ -579,11 +568,9 @@ namespace paraprocess
                 File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Listener deactivated." + Environment.NewLine);
                 return true;
             }
-            KeepRunning = false;
-            incomingThread.Abort();
-            File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Listener deactivated." + Environment.NewLine);
-            return IsActivated();
-
+            File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Listener not deactived. ListenerLoop might be running." + Environment.NewLine);
+            //return IsActivated();
+            return true;
         }
 
         public bool Connect()
@@ -593,8 +580,7 @@ namespace paraprocess
             try
             {
                 socket = new TcpClient("localhost", _port);
-                isConnected = true;
-                return true;
+                return isConnected = true;
             }
             catch (Exception ex)
             {
@@ -611,26 +597,35 @@ namespace paraprocess
                 writer.Flush();
             }
         }
-        private void SendStart(string message)
+        private void SendStartMessage(string message)
         {
             if (socket != null && socket.Connected)
             {
                 StreamWriter writer = new StreamWriter(socket.GetStream());
 
-                //EDIT THIS
-                SpinWait.SpinUntil(()=> (DateTime.Now.Ticks / TimeSpan.TicksPerMillisecond)%15 == 0);
-                writer.WriteLine(message);
+                //int now = DateTime.Now.Millisecond;
+                //int MilliSecondsRemaining = 1000 - now; 
+
+                // LOGIC => 1000 milliseconds = CURRENT MILLISECOND + REMAINING MILLISECONDS
+
+                //Generally, 1000 milliseconds will be more than enough, but to avoid situations such as Now = 999th millisecond, use 2000
+                //Create a timer that waits for the next "second" to start.
+                var t = new Timer(o => { writer.WriteLine(message); }, null, 0, 1000 - DateTime.Now.Millisecond /*MilliSecondsRemaining*/ );
+
+                //writer.WriteLine(message);
                 writer.Flush();
             }
         }
+
         private void ListenerLoop()
         {
             using (StreamReader reader = new StreamReader(socket.GetStream()))
             {
-                while (KeepRunning && NoStop)
+                while (!isPaused) //&& !isStopped)
                 {
                     try
                     {
+                        response = string.Empty;
                         response = reader.ReadLine();
                         JObject jObject = JObject.Parse(response);
 
@@ -642,25 +637,17 @@ namespace paraprocess
                                     if (values != null) //is this necessary?
                                     {
                                         #region JObject variables
-                                        //JObject generalFrameData = jObject.SelectToken("values.frame");
                                         JObject generalFrameData = JObject.Parse(values.SelectToken("frame").ToString());
+
                                         //Get LeftEye Data
                                         JObject leftEyeData = JObject.Parse(generalFrameData.SelectToken("lefteye").ToString());
+
                                         //Get RightEye Data
                                         JObject rightEyeData = JObject.Parse(generalFrameData.SelectToken("righteye").ToString());
-                                        /*
-                                        JToken jGeneralFrame = values.SelectToken("frame"); //to get avg and raw 
-                                        Token jLeftFrame = generalFrameValues.SelectToken("lefteye"); //to get avg and raw of LEFT EYE
-                                        JToken jRightFrame = generalFrameValues.SelectToken("righteye"); //to get avg and raw of RIGH EYE
-                                        */
                                         #endregion
 
                                         #region General Data
 
-                                        /* string timeStampString = generalFrameValues.Property("timestamp").Value.ToString();  
-                                         int timeLong = (int)generalFrameValues.Property("time").Value;  
-                                         string isFixated = (string)generalFrameValues.Property("fix").Value;
-                                         int state = (int)generalFrameValues.Property("state").Value; */
                                         string timeStampString = (string)generalFrameData.SelectToken("timestamp");
                                         int timeLong = (int)generalFrameData.SelectToken("time"); //int
                                         string isFixated = (string)generalFrameData.SelectToken("fix"); //bool
@@ -685,17 +672,11 @@ namespace paraprocess
                                         #region LeftEye
 
                                         #region Raw Coordinates //double
-                                        /* JObject rawGazeLeft = JObject.Parse(jLeftFrame.SelectToken("raw").ToString());
-                                         double rawGazeLeftX = (double)rawGazeLeft.Property("x").Value;
-                                         double rawGazeLeftY = (double)rawGazeLeft.Property("y").Value; */
                                         string rawGazeLeftX = (string)leftEyeData.SelectToken("raw.x");
                                         string rawGazeLeftY = (string)leftEyeData.SelectToken("raw.y");
                                         #endregion
 
                                         #region Smoothed Coordinates //double
-                                        /*  JObject smoothedGazeLeft = JObject.Parse(jLeftFrame.SelectToken("avg").ToString());
-                                          double smoothedGazeLeftX = (double)smoothedGazeLeft.Property("x").Value;
-                                          double smoothedGazeLeftY = (double)smoothedGazeLeft.Property("y").Value; */
                                         string smoothedGazeLeftX = (string)leftEyeData.SelectToken("avg.x");
                                         string smoothedGazeLeftY = (string)leftEyeData.SelectToken("avg.y");
                                         #endregion
@@ -703,9 +684,6 @@ namespace paraprocess
                                         #region Pupil Data //double
                                         string pupilSizeLeft = (string)leftEyeData.SelectToken("psize");
 
-                                        /*JObject pupilCenterLeft = JObject.Parse(jLeftFrame.SelectToken("pcenter").ToString());
-                                        double pupilCenterLeftX = (double)pupilCenterLeft.Property("x").Value;
-                                        double pupilCenterLeftY = (double)pupilCenterLeft.Property("y").Value; */
                                         string pupilCenterLeftX = (string)leftEyeData.SelectToken("pcenter.x");
                                         string pupilCenterLeftY = (string)leftEyeData.SelectToken("pcenter.y");
                                         #endregion
@@ -736,18 +714,25 @@ namespace paraprocess
 
                                         #region Marking lapses
                                         double lapse;
-                                        if (exTimeLong != -1 && (lapse = timeLong - exTimeLong) > 18) //if there is a lapse.
+                                        if (exTimeLong != -1 && (lapse = timeLong - exTimeLong) > 17) //if there is a lapse of duration X, such that 30>X>18
                                         {
-                                            lapse = lapse / 17;
+                                            if (30 >= (lapse = timeLong - exTimeLong))
+                                            {
+                                                lapse = 1;
+                                            }
+                                            else
+                                            {
+                                                lapse = lapse / 17;
+                                            }
                                             for (int i = 0; i < lapse; i++) //prints "lapse" depending on the no.of data-points that have been skipped.
                                             {
                                                 File.AppendAllText(
                                                                workingFilePath,
                                                                _port.ToString() + "," +
-                                                               "lapse" + "," + "lapse" + "," + "lapse" + "," + "lapse" + "," + "lapse" + "," + "lapse" + "," + "lapse" + "," +
-                                                               "lapse" + "," + "lapse" + "," + "lapse" + "," + "lapse" + "," + "lapse" + "," + "lapse" + "," + "lapse" + "," +
-                                                               "lapse" + "," + "lapse" + "," + "lapse" + "," + "lapse" + "," + "lapse" + "," + "lapse" + "," + "lapse" + "," +
-                                                               "lapse" + Environment.NewLine);
+                                                               "0" + "," + "0" + "," + "0" + "," + "0" + "," + "0" + "," + "0" + "," + "0" + "," +
+                                                               "0" + "," + "0" + "," + "0" + "," + "0" + "," + "0" + "," + "0" + "," + "0" + "," +
+                                                               "0" + "," + "0" + "," + "0" + "," + "0" + "," + "0" + "," + "0" + "," + "0" + "," +
+                                                               "0" + Environment.NewLine);
                                             }
 
                                         }
@@ -761,25 +746,25 @@ namespace paraprocess
                                                         rawGazeLeftX + "," + rawGazeLeftY + "," + smoothedGazeLeftX + "," + smoothedGazeLeftY + "," + pupilCenterLeftX + "," + pupilCenterLeftY + "," + pupilSizeLeft + "," +
                                                         rawGazeRightX + "," + rawGazeRightY + "," + smoothedGazeRightX + "," + smoothedGazeRightY + "," + pupilCenterRightX + "," + pupilCenterRightY + "," + pupilSizeRight + "," +
                                                         timeLong.ToString() + Environment.NewLine);
+
+                                        //exTimeStamp gives the timestamp of the last accessed data-point.
+                                        //update the exTimeStamp with the current TimeStamp
                                         exTimeLong = timeLong;
                                         #endregion
                                     }
                                     else
+                                    //If Eye-Tribe server replies anything, then it might not contain any values. This is handle such cases.
                                     {
-                                        #region print null to file if values = null.
-                                        /*   File.AppendAllText(
-                                                                 workingFilePath,
-                                                                 _port.ToString() + "," +
-                                                                 jObject.ToString() +
-                                                                 Environment.NewLine);
-                                       */
-                                        File.AppendAllText(
+                                        #region Write the message received to the LOG file - OR -print null to file if values = null.
+                                        File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Received a 'null' message from the Stream: " + response + Environment.NewLine);
+
+                                         File.AppendAllText(
                                                              workingFilePath,
                                                              _port.ToString() + "," +
                                                              "null" + "," + "null" + "," + "null" + "," + "null" + "," + "null" + "," + "null" + "," + "null" + "," +
                                                              "null" + "," + "null" + "," + "null" + "," + "null" + "," + "null" + "," + "null" + "," + "null" + "," +
                                                              "null" + "," + "null" + "," + "null" + "," + "null" + "," + "null" + "," + "null" + "," + "null" + "," +
-                                                             "null" + Environment.NewLine);
+                                                             "null" + Environment.NewLine); 
 
                                         #endregion
                                     }
@@ -790,16 +775,26 @@ namespace paraprocess
                                     continue;
                                 }
                         }
+                        if (reader.EndOfStream)
+                        {
+                            if (isStopped)
+                            {
+                                //If it has stopped
+                                File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "All data-points were read and saved to file. Exiting ServerHandler " + Environment.NewLine);
+                                break;
+                            }
+                            File.AppendAllText(workingFilePath, breakLine + Environment.NewLine);
+                            //If the program was 'PAUSE'-ed, then isPaused == TRUE.
+                            //So the program Waits until isPaused is FALSE
+                            SpinWait.SpinUntil(() => isPaused = false);
+                        }
                     }
                     catch (Exception e)
                     {
-                        File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Exception occured while reading response: " + e + Environment.NewLine);
+                        File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Exception occured while reading data from Stream: " + e + Environment.NewLine);
                     }
-                    response = string.Empty;
-                    SpinWait.SpinUntil(() => KeepRunning = true); //Waits until listening has been resumed.
                 }
             }
-                
         }
 
         #region These methods deal with starting Servers and also implement IServerHandler
@@ -830,7 +825,7 @@ namespace paraprocess
             psi.WindowStyle = ProcessWindowStyle.Minimized; //set it to hidden 
             psi.FileName = _sPath;
             psi.Arguments = _cPath;
-            if (psi.FileName == string.Empty || File.Exists(psi.FileName) == false)
+            if (string.IsNullOrEmpty(psi.FileName) || File.Exists(psi.FileName) == false)
             {
                 ServerStarted = false;
                 File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Starting Eye-Tribe server failed." + Environment.NewLine);

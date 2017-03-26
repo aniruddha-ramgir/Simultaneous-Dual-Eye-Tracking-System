@@ -11,7 +11,7 @@ namespace ServerHandlerFactory
         FactoryFacade Factory;
         string body = null, label = null;
         MessageQueue IncomingQueue = null;
-        MessageQueue OutgoingQueue = null;
+       // MessageQueue OutgoingQueue = null;
 
         public MainWindow()
         {
@@ -33,7 +33,7 @@ namespace ServerHandlerFactory
             }
             #endregion
 
-            #region Outgoing Queue
+         /*   #region Outgoing Queue
             if (MessageQueue.Exists(@".\Private$\SDET-RE"))
             {
                 OutgoingQueue = new MessageQueue(@".\Private$\SDET-RE");
@@ -43,7 +43,7 @@ namespace ServerHandlerFactory
                 MessageQueue.Create(@".\Private$\SDET-RE");
                 OutgoingQueue = new MessageQueue(@".\Private$\SDET-RE");
             }
-            #endregion
+            #endregion */
         }
         
         private void send(object sender, RoutedEventArgs e)
@@ -51,10 +51,10 @@ namespace ServerHandlerFactory
              this.fakeSend(body.ToLower(), label.ToUpper());
         }
 
-        public void fakeSend(string msg, string label)
+        public void fakeSend(string message, string label)
         {
             Message m = new Message();
-            m.Body = msg;
+            m.Body = message;
             m.Label = label;
             //m.ResponseQueue = OutgoingQueue;
             IncomingQueue.Send(m);
@@ -68,6 +68,27 @@ namespace ServerHandlerFactory
         private void incoming_Copy_TextChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
         {
             label = incoming_Copy.Text;
+        }
+
+        private void Button_Click_1(object sender, RoutedEventArgs e)
+        {
+            MessageBoxResult result = MessageBox.Show("This application was developed by Aniruddha Ramgir at Action Control and Cognition Lab, University of Hyderabad. " 
+                + System.Environment.NewLine 
+                + "Would you like to visit our lab website?"
+                , "About us", MessageBoxButton.YesNo);
+            switch (result)
+            {
+                case MessageBoxResult.Yes:
+                    System.Diagnostics.Process.Start("https://actioncontrolcognition.wordpress.com/");
+                    break;
+                case MessageBoxResult.No:
+                    break;
+            }
+        }
+
+        private void Button_Click_2(object sender, RoutedEventArgs e)
+        {
+            System.Diagnostics.Process.Start("https://github.com/aniruddha-ramgir/Simultaneous-Dual-Eye-Tracking-System");
         }
 
         private void Button_Click(object sender, RoutedEventArgs e)

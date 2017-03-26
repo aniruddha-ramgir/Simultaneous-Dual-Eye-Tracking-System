@@ -8,13 +8,14 @@ using System.Windows;
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
 [assembly: AssemblyTitle("ServerHandlerFactory")]
-[assembly: AssemblyDescription("")]
+[assembly: AssemblyDescription("Intialises the Server-Handlers that communicate with their respective Eye-Tribe eye-trackers. Factory also acts as an interface between Experimental Software and multiple Server-Handlers.")]
 [assembly: AssemblyConfiguration("")]
-[assembly: AssemblyCompany("")]
+[assembly: AssemblyCompany("Action Control and Cognition Lab")]
 [assembly: AssemblyProduct("ServerHandlerFactory")]
 [assembly: AssemblyCopyright("Copyright ©  2017")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
+[assembly: System.CLSCompliant(true)]
 
 // Setting ComVisible to false makes the types in this assembly not visible 
 // to COM components.  If you need to access a type in this assembly from 
@@ -53,3 +54,5 @@ using System.Windows;
 // [assembly: AssemblyVersion("1.0.*")]
 [assembly: AssemblyVersion("1.0.0.0")]
 [assembly: AssemblyFileVersion("1.0.0.0")]
+[assembly: NeutralResourcesLanguage("en-IN")]
+

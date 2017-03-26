@@ -117,20 +117,4 @@
   <resheader name="writer">
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
-  <data name="HandlerPath" xml:space="preserve">
-    <value>C:\\Users\\Aniruddha\\Documents\\Visual Studio 2015\\Projects\\paraprocess\\ServerHandler\\bin\\Debug\\ServerHandler.exe</value>
-    <comment>default path of the Server Handler.</comment>
-  </data>
-  <data name="incomingQueueName" xml:space="preserve">
-    <value>SDET-RQ</value>
-    <comment>default path for the receving queue for SDET</comment>
-  </data>
-  <data name="logPath" xml:space="preserve">
-    <value>C:\\Users\\Aniruddha\\Documents\\SDET\\logs\\ServerHandlerFactory\\</value>
-    <comment>default path for storing HandlerFactory-related logs.</comment>
-  </data>
-  <data name="outgoingQueueName" xml:space="preserve">
-    <value>SDET-RE</value>
-    <comment>default path for the replying queue for SDET</comment>
-  </data>
 </root>
