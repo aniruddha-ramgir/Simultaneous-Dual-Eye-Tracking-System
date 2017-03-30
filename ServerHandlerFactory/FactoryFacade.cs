@@ -43,8 +43,8 @@ namespace ServerHandlerFactory
             Handler2ProcessID =  StartHandlerProcess("6556");
 
             //Process Affinity
-            Process.GetProcessById(Handler1ProcessID).ProcessorAffinity = (IntPtr)1;
-            Process.GetProcessById(Handler2ProcessID).ProcessorAffinity = (IntPtr)1;
+            //Process.GetProcessById(Handler1ProcessID).ProcessorAffinity = (IntPtr)1;
+            //Process.GetProcessById(Handler2ProcessID).ProcessorAffinity = (IntPtr)1;
 
             Observer = new FactoryObserver("6555", "6556");
             Observer.SyncRun();

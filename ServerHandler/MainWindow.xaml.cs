@@ -55,6 +55,7 @@ namespace Calibration
             //REMOVE THIS
             GazeManager.Instance.Deactivate();
             ServerHandler.HandlerFacade.Observer.sendResponse("calibrate", "NOTIF");
+            paraprocess.Program.Alpha.isCalibrated = true;
         }
 
         public void OnConnectionStateChanged(bool IsActivated)

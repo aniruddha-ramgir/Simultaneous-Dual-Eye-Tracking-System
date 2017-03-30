@@ -66,6 +66,7 @@ class StimuliObserver:
 		except:				
 			ctypes.windll.user32.MessageBoxW(None, u'Exception while sending ready-message', u'Error: SDET Python package', 0)
 			return False
+			
 	def start(self):
 		try:
 			msg=win32com.client.Dispatch("MSMQ.MSMQMessage")
@@ -76,6 +77,7 @@ class StimuliObserver:
 		except:				
 			ctypes.windll.user32.MessageBoxW(None, u'Exception while sending start-message', u'Error: SDET Python package', 0)
 			return False
+			
 	def pause(self):
 		try:
 			msg=win32com.client.Dispatch("MSMQ.MSMQMessage")
@@ -86,7 +88,18 @@ class StimuliObserver:
 		except:					
 			ctypes.windll.user32.MessageBoxW(None, u'Exception while sending pause-message', u'Error: SDET Python package', 0)
 			return False
-
+			
+	def resume(self):
+		try:
+			msg=win32com.client.Dispatch("MSMQ.MSMQMessage")
+			msg.Label="REQ"
+			msg.Body = '<?xml version="1.0"?><string>'+'resume'+'</string>'
+			msg.Send(outgoingQueue)
+			return self.handleReply("resume")
+		except:				
+			ctypes.windll.user32.MessageBoxW(None, u'Exception while sending start-message', u'Error: SDET Python package', 0)
+			return False
+			
 	def stop(self):
 		try:
 			msg=win32com.client.Dispatch("MSMQ.MSMQMessage")

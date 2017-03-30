@@ -398,7 +398,7 @@ namespace paraprocess
 
         public bool IsListening()
         {
-            return isPaused;
+            return !isPaused;
         } //CHANGE. 
         public bool IsActivated()
         {
@@ -460,7 +460,7 @@ namespace paraprocess
                
                 // Initiliaze a seperate thread to parse incoming data
                 incomingThread = new Thread(ListenerLoop);
-                incomingThread.Priority = ThreadPriority.AboveNormal;
+                //incomingThread.Priority = ThreadPriority.AboveNormal;
 
                 return true;
             }
@@ -610,9 +610,7 @@ namespace paraprocess
 
                 //Generally, 1000 milliseconds will be more than enough, but to avoid situations such as Now = 999th millisecond, use 2000
                 //Create a timer that waits for the next "second" to start.
-                var t = new Timer(o => { writer.WriteLine(message); }, null, 0, 1000 - DateTime.Now.Millisecond /*MilliSecondsRemaining*/ );
-
-                //writer.WriteLine(message);
+                var t = new Timer(o => { writer.WriteLine(message); }, null,1000 - DateTime.Now.Millisecond /*MilliSecondsRemaining*/, 0);
                 writer.Flush();
             }
         }
@@ -714,7 +712,7 @@ namespace paraprocess
 
                                         #region Marking lapses
                                         double lapse;
-                                        if (exTimeLong != -1 && (lapse = timeLong - exTimeLong) > 17) //if there is a lapse of duration X, such that 30>X>18
+                                        if (exTimeLong != -1 && (lapse = timeLong - exTimeLong) > 20) //if there is a lapse of duration X, such that 30>X>18
                                         {
                                             if (30 >= (lapse = timeLong - exTimeLong))
                                             {
@@ -758,14 +756,14 @@ namespace paraprocess
                                         #region Write the message received to the LOG file - OR -print null to file if values = null.
                                         File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Received a 'null' message from the Stream: " + response + Environment.NewLine);
 
-                                         File.AppendAllText(
+                                        /* File.AppendAllText(
                                                              workingFilePath,
                                                              _port.ToString() + "," +
                                                              "null" + "," + "null" + "," + "null" + "," + "null" + "," + "null" + "," + "null" + "," + "null" + "," +
                                                              "null" + "," + "null" + "," + "null" + "," + "null" + "," + "null" + "," + "null" + "," + "null" + "," +
                                                              "null" + "," + "null" + "," + "null" + "," + "null" + "," + "null" + "," + "null" + "," + "null" + "," +
                                                              "null" + Environment.NewLine); 
-
+*/
                                         #endregion
                                     }
                                     continue;
@@ -775,7 +773,7 @@ namespace paraprocess
                                     continue;
                                 }
                         }
-                        if (reader.EndOfStream)
+                        if (isPaused || reader.EndOfStream)
                         {
                             if (isStopped)
                             {

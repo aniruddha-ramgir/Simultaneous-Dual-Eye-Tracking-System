@@ -14,24 +14,24 @@ SETUP:
 2. Go to the installed directory.
 
 3. Look for "ServerHandlerFactory.exe.config" file, and open it using wordpad or Notepad++.
-3.1. Change the value for "HandlerPath" to installation location. Eg: "C:\\Program Files (x86)\\Simultaneous Dual Eye-Tracking System\\ServerHandler.exe"
-3.2. Change the value for "logPath" to any location you feel comfortable with. Eg: "C:\\Program Files (x86)\\Simultaneous Dual Eye-Tracking System\\logs\\ServerHandlerFactory\\"
-3.3. Do not change anything else in that file. Save and close the file.
+3. 1. Change the value for "HandlerPath" to installation location. Eg: "C:\\Program Files (x86)\\Simultaneous Dual Eye-Tracking System\\ServerHandler.exe"
+3. 2. Change the value for "logPath" to any location you feel comfortable with. Eg: "C:\\Program Files (x86)\\Simultaneous Dual Eye-Tracking System\\logs\\ServerHandlerFactory\\"
+3. 3. Do not change anything else in that file. Save and close the file.
 
 4. Look for "ServerHandler.exe.config" file, and open it using wordpad or Notepad++.
-4.1 Change the value for "configPath" to location where the Server config files are stored. Eg: "C:\\Program Files (x86)\\Simultaneous Dual Eye-Tracking System\\config\\"
-4.2 Change the value for "logPath" to any location you feel comfortable with. Eg: Eg: "C:\\Program Files (x86)\\Simultaneous Dual Eye-Tracking System\\logs\\ServerHandler\\"
-4.3 Change the value for "mainPath" to any location you feel comfortable with. Eg: "C:\\Program Files (x86)\\Simultaneous Dual Eye-Tracking System\\experiment\\"
-4.4 Change the value for "testPath" to any location you feel comfortable with. Eg: "C:\\Program Files (x86)\\Simultaneous Dual Eye-Tracking System\\test\\"
-4.5 Do not change anything else in this file. Save and close the file.
+4. 1. Change the value for "configPath" to location where the Server config files are stored. Eg: "C:\\Program Files (x86)\\Simultaneous Dual Eye-Tracking System\\config\\"
+4. 2. Change the value for "logPath" to any location you feel comfortable with. Eg: Eg: "C:\\Program Files (x86)\\Simultaneous Dual Eye-Tracking System\\logs\\ServerHandler\\"
+4. 3. Change the value for "mainPath" to any location you feel comfortable with. Eg: "C:\\Program Files (x86)\\Simultaneous Dual Eye-Tracking System\\experiment\\"
+4. 4. Change the value for "testPath" to any location you feel comfortable with. Eg: "C:\\Program Files (x86)\\Simultaneous Dual Eye-Tracking System\\test\\"
+4. 5. Do not change anything else in this file. Save and close the file.
 
 5. Assuming you're using PsychoPy.Go to the installation directory and look for a package called "DualPy". Then, import it into PsychoPy2. One way to do that is to simply copy the folder to PsychoPy2\Lib.
 Example result: C:\Program Files (x86)\PsychoPy2\Lib\DualPy
 
 6.In the Python code, 
-6.1 Import the package.
-6.2 Create an object of "StimuliObserver" 
-6.3 Call "start() stop() pause() connect()" functions appropriately.
+6. 1. Import the package.
+6. 2. Create an object of "StimuliObserver" 
+6. 3. Call "start() stop() pause() connect()" functions appropriately.
 
 
 HOW TO RUN:
