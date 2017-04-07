@@ -521,6 +521,7 @@ namespace ServerHandlerFactory
                     Response.Label = "ERR";
                     Response.ResponseQueue = IncomingQueue;
                     OutgoingQueue.Send(Response);
+                    System.Windows.Forms.MessageBox.Show("Check Handler logs","ERROR occured at one of the Handlers for the message:  "+ receivedMessage.Body.ToString());
                     continue;
                 }
                 #endregion

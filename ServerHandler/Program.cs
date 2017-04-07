@@ -619,7 +619,7 @@ namespace paraprocess
         {
             using (StreamReader reader = new StreamReader(socket.GetStream()))
             {
-                while (!isPaused) //&& !isStopped)
+                do
                 {
                     try
                     {
@@ -791,7 +791,7 @@ namespace paraprocess
                     {
                         File.AppendAllText(ServerHandler.HandlerFacade.logFilePathName, DateTime.Now.ToString("hh.mm.ss.ffffff") + "Exception occured while reading data from Stream: " + e + Environment.NewLine);
                     }
-                }
+                } while (true); //!isPaused); //&& !isStopped)
             }
         }
 

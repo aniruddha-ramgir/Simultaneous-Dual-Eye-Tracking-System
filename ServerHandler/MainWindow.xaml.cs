@@ -16,15 +16,16 @@ using EyeTribe.ClientSdk.Data;
 using System.Windows.Interop;
 using EyeTribe.ClientSdk;
 using MessageBox = System.Windows.MessageBox;
+using System.Configuration;
 
 namespace Calibration
 {
     public partial class MainWindow : IConnectionStateListener
     {
         private Screen activeScreen = Screen.PrimaryScreen;
-
+        private System.Drawing.Rectangle Bounds;
         //private bool isCalibrated = false;
-        private bool validResult = false;
+        //private bool validResult = false;
 
         public MainWindow()
         {
@@ -38,7 +39,19 @@ namespace Calibration
             // Activate/connect client
              GazeManager.Instance.Activate(GazeManagerCore.ApiVersion.VERSION_1_0, "localhost", paraprocess.Program.Alpha._port);
 
+            Int32 side = Convert.ToInt32(ConfigurationManager.AppSettings["CalibrationBounds"]);
+            if (side != 0)
+            {
+                System.Drawing.Point center = new System.Drawing.Point(activeScreen.Bounds.Width / 2, activeScreen.Bounds.Height / 2);
+                System.Drawing.Size size = new System.Drawing.Size(side, side);
+                Bounds = new System.Drawing.Rectangle(center, size);
+            }
+            else
+            {
+                Bounds = activeScreen.Bounds;
+            }
 
+            //MessageBox.Show(Bounds.Height.ToString() + ","+Bounds.Width.ToString() + "," + Bounds.X.ToString() + "," + Bounds.Y.ToString());
             // Listen for changes in connection to server
             GazeManager.Instance.AddConnectionStateListener(this);
             port.Text = Convert.ToString(paraprocess.Program.Alpha._port, System.Globalization.CultureInfo.InvariantCulture);
@@ -53,9 +66,9 @@ namespace Calibration
             UpdateState();
 
             //REMOVE THIS
-            GazeManager.Instance.Deactivate();
-            ServerHandler.HandlerFacade.Observer.sendResponse("calibrate", "NOTIF");
-            paraprocess.Program.Alpha.isCalibrated = true;
+            //GazeManager.Instance.Deactivate();
+            //ServerHandler.HandlerFacade.Observer.sendResponse("calibrate", "NOTIF");
+            //paraprocess.Program.Alpha.isCalibrated = true;
         }
 
         public void OnConnectionStateChanged(bool IsActivated)
@@ -91,8 +104,10 @@ namespace Calibration
             // Update screen to calibrate where the window currently is
             activeScreen = Screen.FromHandle(new WindowInteropHelper(this).Handle);
 
+            Int32 CalibPoints = Convert.ToInt32(ConfigurationManager.AppSettings["CalibrationPoints"]);
+
             // Initialize and start the calibration
-            CalibrationRunner calRunner = new CalibrationRunner(activeScreen, activeScreen.Bounds.Size, 9);
+            CalibrationRunner calRunner = new CalibrationRunner(activeScreen, Bounds.Size, CalibPoints);
             calRunner.OnResult += calRunner_OnResult;
             calRunner.Start();
         }
@@ -113,13 +128,14 @@ namespace Calibration
                         UpdateState();
 
                         DialogResult result1 = System.Windows.Forms.MessageBox.Show(
-                                 "Calibration Result of:" + port.Text.ToString()+" was "+ RatingFunction(GazeManager.Instance.LastCalibrationResult),
+                                 "Calibration Result of:" + port.Text.ToString()+" was: "+ RatingFunction(GazeManager.Instance.LastCalibrationResult),
                                  "Click YES to accept the result. NO to discard.",
                                   MessageBoxButtons.YesNo);
 
-                        if (result1 == System.Windows.Forms.DialogResult.Yes && validResult)
+                        if (result1 == System.Windows.Forms.DialogResult.Yes)// && validResult)
                         {
-                            //Send message that the tracker is calibrated    
+                            //Send message that the tracker is calibrated  
+                            GazeManager.Instance.Deactivate();
                             ServerHandler.HandlerFacade.Observer.sendResponse("calibrate", "NOTIF");
                             paraprocess.Program.Alpha.isCalibrated = true;
                         }
@@ -181,29 +197,23 @@ namespace Calibration
 
             if (accuracy < 0.5)
             {
-                validResult = true;
                 return "PERFECT";
             }
             if (accuracy < 0.7)
             {
-                validResult = true;
                 return "GOOD";
                 //return "Calibration Quality: GOOD";
             }
 
             if (accuracy < 1)
             {
-                validResult = true;
                 return "MODERATE";
             }
 
             if (accuracy < 1.5)
             {
-                validResult = false;
                 return "POOR";
             }
-
-            validResult = false;
             return "REDO";
         }
 
